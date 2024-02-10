@@ -16,5 +16,7 @@ format:
     theme: cyborg
     css: styles.css
 
+execute:
+  freeze: auto
 
 

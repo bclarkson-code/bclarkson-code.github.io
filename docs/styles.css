@@ -1,1 +1,8 @@
 /* css styles */
+p code:not(.sourceCode),
+li code:not(.sourceCode),
+td code:not(.sourceCode) {
+    background-color: rgba(0, 0, 0, 0);
+    color: #abe338;
+    padding: .2em
+}
