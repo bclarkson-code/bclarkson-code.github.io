@@ -1,6 +1,6 @@
 ---
 title: Building an LLM from scratch
-description: 'Building the core of the deep learning framework: automatic differentiation'
+description: 'Automatic Differentiation'
 author: Ben Clarkson
 date: 02/10/2023
 draft: false
@@ -8,31 +8,25 @@ jupyter: python3
 ---
 
 ```{python}
-#| vscode: {languageId: python}
+# | vscode: {languageId: python}
+# | code-fold: true
+# | code-summary: "Setup"#|
 from typing import Any, Optional
 
 import networkx as nx
 ```
 
-## Automatic Differentiation
-
-
-One of the best things about the AI community is how open and accessible (with some notable exceptions, I'm looking at you "Open"AI) a lot of modern developments are. With a bit of python knowledge, you can go to huggingface, copy-paste some code, feed in some data and start training a state of the art language model. The whole process can be done in less than an hour and is a fantastic example of giving the public access to the latest research. Unfortunately, this ease of use is only possible by hiding a lot of important details which leaves people (me) with the feeling that there might be gaps in their knowledge.
-
-I like to imagine deep learning research as a tree, with each new technique sprouting from the branches of earlier developments. To understand something new, you can read through the paper and every time you come across something you don't understand, you can follow the tree back a few branches to get the necessary background and then continue with the paper.
-
-I think that a lot of people who get into the field learn the basic theory (e.g gradient descent) and then jump to the cutting edge, filling in any gaps by following the branches backwards as they go. This is a great way to do useful things as fast as possible but also requires a lot of work to fill in the gaps every time new research comes out. Given the pace of development, it is easy to feel overwhelmed with everything that is going on.
-
-To fix this issue, I want to start from the bottom of the tree and work up, building a modern language model with all the bells and whistles completely from scratch. Borrowing (shamelessly stealing) from computer games, I've built a tech tree of everything that I think I'll need to implement to get a fully functional language model. If you think anything is missing, please let me [know](mailto:bclarkson-code@proton.me):  
+## LLM from scratch: Automatic Differentiation
+I'm building a modern language model with all the bells and whistles completely from scratch: from vanilla python to functional coding assistant.  Borrowing (shamelessly stealing) from computer games, I've built a tech tree of everything that I think I'll need to implement to get a fully functional language model.  If you think anything is missing, please let me [know](mailto:bclarkson-code@proton.me):  
 
 ![The LLM from scratch tech tree](images/tech_tree_post_1.png){width="700"}
 
-Before we can move onto building modern features like Rotary Positional Encodings, we first need to figure out how to differentiate with a computer. The backpropagation algorithm that underpins the entire field of Deep Learning requires the ability to differentiate the outputs of neural networks with respect to (wrt) their inputs. In this post, we'll go from nothing to a (admittedly very limited) automatic differentiation library that can differentiate arbitrary functions of scalar values.
+Before we can move onto building modern features like Rotary Positional Encodings, we first need to figure out how to differentiate with a computer.  The backpropagation algorithm that underpins the entire field of Deep Learning requires the ability to differentiate the outputs of neural networks with respect to (wrt) their inputs.  In this post, we'll go from nothing to a (admittedly very limited) automatic differentiation library that can differentiate arbitrary functions of scalar values.
 
-This one algorithm will form the core of out deep learning library that, eventually, will include everything we need to train a language model. 
+This one algorithm will form the core of out deep learning library that, eventually, will include everything we need to train a language model.  
 
 ## Creating a tensor 
-We can't do any differentiation if we don't have any numbers to differentiate. We'll want to add some extra functionality that is in standard `float` types so we'll need to create out own. Lets call it a `Tensor`.
+We can't do any differentiation if we don't have any numbers to differentiate.  We'll want to add some extra functionality that is in standard `float` types so we'll need to create out own.  let's call it a `Tensor`.
 
 ```{python}
 #| vscode: {languageId: python}
@@ -115,7 +109,7 @@ test(_mul(a, b).value, 12)
 ```
 
 ## Scalar derivatives
-Diving straight into differentiating matrices sounds too hard so lets start with something simpler: differentiating scalars. The simplest scalar derivative I can think of is the derivative of a tensor with respect to (wrt) itself:
+Diving straight into differentiating matrices sounds too hard so let's start with something simpler: differentiating scalars.  The simplest scalar derivative I can think of is the derivative of a tensor with respect to (wrt) itself:
 $$\frac{dx}{dx} = 1$$
 
 A more interesting case is the derivative of two tensors added together (note we are using partial derivatives because our function has multiple inputs):
@@ -131,13 +125,13 @@ We can do a similar thing for multiplication and subtraction
 |$x - y$|$1$|$-1$|
 |$x \times y$|$y$|$x$|
 
-Now that we've worked out these derivatives mathematically, the next step is to convert them into code. In the table above, when we make a tensor by combining two tensors with an operation, the derivative only ever depends on the inputs and the operation. There is no "hidden state".
+Now that we've worked out these derivatives mathematically, the next step is to convert them into code.  In the table above, when we make a tensor by combining two tensors with an operation, the derivative only ever depends on the inputs and the operation.  There is no "hidden state".
 
-This means that the only information we need to store is the inputs to an operation and a function to calculate the derivative wrt each inputs. With this, we should be able to differentiate any binary function wrt its inputs. A good place to store this information is in the tensor that is produced by the operation.
+This means that the only information we need to store is the inputs to an operation and a function to calculate the derivative wrt each inputs.  With this, we should be able to differentiate any binary function wrt its inputs.  A good place to store this information is in the tensor that is produced by the operation.
 
-We'll add some new attributes to our `Tensor`: `args` and `local_derivatives`. If the tensor is the output of an operation, then `args` will store the arguments to the operation and `local_derivatives` will store the derivatives wrt each input. We're calling it `local_derivatives` to avoid confusion when we start nesting functions.
+We'll add some new attributes to our `Tensor`: `args` and `local_derivatives`.  If the tensor is the output of an operation, then `args` will store the arguments to the operation and `local_derivatives` will store the derivatives wrt each input.  We're calling it `local_derivatives` to avoid confusion when we start nesting functions.
 
-Once we've calculated the derivative (from our `args` and `local_derivatives`) we'll need to store it. It turns out that the neatest place to put this is in tensor that the output is being differentiated wrt. We'll call this `derivative`
+Once we've calculated the derivative (from our `args` and `local_derivatives`) we'll need to store it.  It turns out that the neatest place to put this is in tensor that the output is being differentiated wrt.  We'll call this `derivative`
 
 ```{python}
 #| vscode: {languageId: python}
@@ -196,7 +190,7 @@ output.derivatives == (
 )
 ```
 
-Once we have actually computed the derivatives, then the derivative of `output` wrt `a` will be stored in `a.derivative` and should be equal to `b` (which is 4 in this case). 
+Once we have actually computed the derivatives, then the derivative of `output` wrt `a` will be stored in `a.derivative` and should be equal to `b` (which is 4 in this case).  
 
 We know that we've done everything right once these tests pass:
 
@@ -215,7 +209,7 @@ test(a.derivative, b)
 test(b.derivative, a)
 ```
 
-First, lets add a function to our `Tensor` that will actually calculate the derivatives for each of the function arguments. Pytorch calls this function `backward` so we'll do the same.
+First, let's add a function to our `Tensor` that will actually calculate the derivatives for each of the function arguments.  Pytorch calls this function `backward` so we'll do the same.
 
 ```{python}
 #| vscode: {languageId: python}
@@ -297,7 +291,7 @@ def _mul(a: Tensor, b: Tensor):
     return result
 ```
 
-Lets re-run our tests and see if it works
+let's re-run our tests and see if it works
 
 ```{python}
 #| vscode: {languageId: python}
@@ -314,7 +308,7 @@ test(a.derivative, b)
 test(b.derivative, a)
 ```
 
-So far so good, lets try nesting operations.
+So far so good, let's try nesting operations.
 
 ```{python}
 #| vscode: {languageId: python}
@@ -332,10 +326,10 @@ output_2.backward()
 test(b.derivative, a)
 ```
 
-Something has gone wrong. 
+Something has gone wrong.  
 
-We should have got `a` as the derivative for `b` but we got `0` instead. Looking through the `.backward()` function, the issue is pretty clear:
-we haven't thought about nested functions. To get this example working, we'll need to figure out how to calculate derivatives through multiple functions instead of just one.
+We should have got `a` as the derivative for `b` but we got `0` instead.  Looking through the `.backward()` function, the issue is pretty clear:
+we haven't thought about nested functions.  To get this example working, we'll need to figure out how to calculate derivatives through multiple functions instead of just one.
 
 ## Chaining Functions Together
 
@@ -347,7 +341,7 @@ $$z = f(g(x))$$
 Then the derivative of $z$ wrt $x$ is:
 $$\frac{\partial z}{\partial x} = \frac{\partial f(u)}{\partial u} \frac{\partial g(x)}{\partial x}$$
 
-Here, $u$ is a dummy variable.  $\frac{\partial f(u)}{\partial u}$ means the derivative of $f$ wrt its input.
+Here, $u$ is a dummy variable.   $\frac{\partial f(u)}{\partial u}$ means the derivative of $f$ wrt its input.
 
 For example, if 
 
@@ -356,7 +350,7 @@ Then we can define $u=g(x)$ and rewrite $f$ in terms of u
 $$f(u) = u^2 \implies \frac{\partial f(u)}{\partial u} = 2u = 2 g(x)$$
 
 ### Multiple Variables
-The chain rule works as you might expect for functions of multiple variables. When differentiating wrt a variable, we can treat the other variables as constant and differentiate as normal
+The chain rule works as you might expect for functions of multiple variables.  When differentiating wrt a variable, we can treat the other variables as constant and differentiate as normal
 $$z = f(g(x), h(y))$$
 
 $$\frac{\partial z}{\partial x} = \frac{\partial f(u)}{\partial u} \frac{\partial g(x)}{\partial x}$$
@@ -379,7 +373,7 @@ And this generalises to any amount of nesting
 $$z = f_1(f_2(....f_{n-1}(f_n(x))...)) \implies \frac{\partial z}{\partial x} = \frac{\partial f_1(u)}{\partial u}\frac{\partial f_2(u)}{\partial u}...\frac{\partial f_{n-1}(u)}{\partial u}\frac{\partial f_{n}(x)}{\partial x}$$
 
 ### A picture is worth a thousand equations
-As you probably noticed, the maths is starting to get quite dense. When we start working with neural networks, we can easily get 100s or 1000s of functions deep so to get a handle on things, we'll need a different strategy. Helpfully, there is one: turning it into a graph.
+As you probably noticed, the maths is starting to get quite dense.  When we start working with neural networks, we can easily get 100s or 1000s of functions deep so to get a handle on things, we'll need a different strategy.  Helpfully, there is one: turning it into a graph.
 
 We can start with some rules:
 
@@ -387,22 +381,22 @@ We can start with some rules:
 
 ![](images/variable_and_box.png){width=50% fig-align="center"}
 
-> Inputs to an operation are represented with arrows that point to the operation box. Outputs point away.
+> Inputs to an operation are represented with arrows that point to the operation box.  Outputs point away.
 
 For example, here is the diagram for $z = mx$
 
 ![](images/z_eq_mx.png){width=50% fig-align="center"}
 
-And thats it! All of the equations we'll be working with can be represented graphically using these simple rules. To try it out, let's draw the diagram for a more complex formula:
+And that's it! All of the equations we'll be working with can be represented graphically using these simple rules.  To try it out, let's draw the diagram for a more complex formula:
 
 ![](images/square_error.png){ width=60% fig-align="center"}
 
-This is an example of a structure called a graph (also called a network). A lot of problem in computer science get much easier if you can represent them with a graph and this is no exception.
+This is an example of a structure called a graph (also called a network).  A lot of problem in computer science get much easier if you can represent them with a graph and this is no exception.
 
-The real power of these diagrams is that they can also help us with our derivatives. Take 
+The real power of these diagrams is that they can also help us with our derivatives.  Take 
 $$y = mx + p = \texttt{add}(p, \texttt{mul}(m ,x)).$$
 
-From before, we can find its derivatives by differentiating each operation wrt its inputs and multiplying the results together. In this case, we get:
+From before, we can find its derivatives by differentiating each operation wrt its inputs and multiplying the results together.  In this case, we get:
 $$\frac{\partial y}{\partial p} = \frac{\partial \texttt{add}(u_1, u_2)}{\partial u_1} = 1$$
 $$\frac{\partial y}{\partial m} = \frac{\partial \texttt{add}(u_1, u_2)}{\partial u_2}\frac{\partial \texttt{mul}(u_1, u_2)}{\partial u_2} = 1 \times x = x$$
 $$\frac{\partial y}{\partial x} = \frac{\partial \texttt{add}(u_1, u_2)}{\partial u_2}\frac{\partial \texttt{mul}(u_1, u_2)}{\partial u_1} = 1 \times m = m$$
@@ -411,13 +405,13 @@ We can also graph it like this:
 
 ![](images/y_eq_mx_plus_p_labelled.png){ width=50% fig-align="center"}
 
-If you imagine walking from $y$ to each of the inputs, you might notice a similarity between the edges you pass through and the equations above. If you walk from $y$ to $x$, you'll pass through `a->c->d`.  Similarly, if you walk from $y$ to $m$, you'll pass through `a->d->e`. Notice that both paths go through `c`, the edge coming out of `add` that corresponds to the input $u_2$. Also, both equations  include the term $\frac{\partial \texttt{add}(u_1, u_2)}{\partial u_2}$. 
+If you imagine walking from $y$ to each of the inputs, you might notice a similarity between the edges you pass through and the equations above.  If you walk from $y$ to $x$, you'll pass through `a->c->d`.   Similarly, if you walk from $y$ to $m$, you'll pass through `a->d->e`.  Notice that both paths go through `c`, the edge coming out of `add` that corresponds to the input $u_2$.  Also, both equations  include the term $\frac{\partial \texttt{add}(u_1, u_2)}{\partial u_2}$.  
 
 If I rename the edges as follows:
 
 ![](images/y_eq_mx_plus_p_deriv.png){ width=50% fig-align="center"}
 
-We can see that going from $y$ to $x$, we pass through $1$, $\frac{\partial \texttt{add}(u_1, u_2)}{\partial u_2}$ and $\frac{\partial \texttt{mul}(u_1, u_2)}{\partial u_1}$. If we multiply these together, we get exactly $\frac{\partial \texttt{add}(u_1, u_2)}{\partial u_2}\frac{\partial \texttt{mul}(u_1, u_2)}{\partial u_1} = \frac{\partial y}{\partial x}$!
+We can see that going from $y$ to $x$, we pass through $1$, $\frac{\partial \texttt{add}(u_1, u_2)}{\partial u_2}$ and $\frac{\partial \texttt{mul}(u_1, u_2)}{\partial u_1}$.  If we multiply these together, we get exactly $\frac{\partial \texttt{add}(u_1, u_2)}{\partial u_2}\frac{\partial \texttt{mul}(u_1, u_2)}{\partial u_1} = \frac{\partial y}{\partial x}$!
 
 It turns out that this rule works in general:
 
@@ -435,17 +429,17 @@ This comes from the case we saw earlier where when we have different functions t
 
 > If an edge is not the input to any function, its derivative is 1
 
-This covers the edge that leads from the final operation to the output. You can think of the edge having the derivative $\frac{\partial y}{\partial y}=1$
+This covers the edge that leads from the final operation to the output.  You can think of the edge having the derivative $\frac{\partial y}{\partial y}=1$
 
-And thats it! Lets try it out with $z = (x + c)x$:
+And that's it! let's try it out with $z = (x + c)x$:
 
 ![](images/z_eq_xx_plus_xc.png){width=50% fig-align="center"}
 
-Here, instead of writing the formulae for each derivative, I have gone ahead and calculated their actual values. Instead of just figuring out the formulae for a derivative, we want to calculate its value when we plug in our input parameters. 
+Here, instead of writing the formulae for each derivative, I have gone ahead and calculated their actual values.  Instead of just figuring out the formulae for a derivative, we want to calculate its value when we plug in our input parameters.  
 
-All that remains is to multiply the local derivatives together along each path. We'll call the product of derivatives along a single path a chain (after the chain rule)
+All that remains is to multiply the local derivatives together along each path.  We'll call the product of derivatives along a single path a chain (after the chain rule)
 
-We can get from $z$ to $x$ via the green path and the red path. Following these paths, we get:
+We can get from $z$ to $x$ via the green path and the red path.  Following these paths, we get:
 $$\text{red path} = 1 \times (x + c) = x + c$$
 Along the green path we get:
 $$\text{green path} = 1 \times x \times 1 = x$$
@@ -460,21 +454,21 @@ We can see that it seems to work! (Calculating $\frac{\partial z}{\partial c}$ i
 
 To summarise, we have invented the following algorithm for calculating of a variable wrt its inputs:
 
-1. Turn the equation into a graph
-2. Label each edge with the appropriate derivative
-3. Find every path from the output to the input variable you care about
-4. Follow each path and multiply the derivatives you pass through
-5. Add together the results for each path
+1.  Turn the equation into a graph
+2.  Label each edge with the appropriate derivative
+3.  Find every path from the output to the input variable you care about
+4.  Follow each path and multiply the derivatives you pass through
+5.  Add together the results for each path
 
-We have an algorithm in pictures and words, lets turn it into code.
+We have an algorithm in pictures and words, let's turn it into code.
 
 ### The Algorithm™
 
-Suprisingly, we have actually already converted our functions into graphs. If you recall, when we generate a tensor from an operation, we record the inputs to the operation in the output tensor (in `.args`). We also stored the functions to calculate derivatives for each of the inputs in `.local_derivatives` which means that we know both the destination and derivative for every edge that points to a given node. This means that we've already completed steps 1 and 2.
+Suprisingly, we have actually already converted our functions into graphs.  If you recall, when we generate a tensor from an operation, we record the inputs to the operation in the output tensor (in `.args`).  We also stored the functions to calculate derivatives for each of the inputs in `.local_derivatives` which means that we know both the destination and derivative for every edge that points to a given node.  This means that we've already completed steps 1 and 2.
 
-The next challenge is to find all paths from the tensor we want to differentiate to the input tensors that created it. Because none of our operations are self referential (outputs are never fed back in as inputs), and all of our edges have a direction, our graph of operations is a  directed acyclic graph or DAG. The property of the graph having no cycles means that we can find all paths to every parameter pretty easily with a Breadth First Search (or Depth First Search but BFS makes some optimisations easier as we'll see in part 2).
+The next challenge is to find all paths from the tensor we want to differentiate to the input tensors that created it.  Because none of our operations are self referential (outputs are never fed back in as inputs), and all of our edges have a direction, our graph of operations is a  directed acyclic graph or DAG.  The property of the graph having no cycles means that we can find all paths to every parameter pretty easily with a Breadth First Search (or Depth First Search but BFS makes some optimisations easier as we'll see in part 2).
 
-To try it out, lets recreate that giant graph we made earlier. We can do this by first calculating $L$ from the inputs
+To try it out, let's recreate that giant graph we made earlier.  We can do this by first calculating $L$ from the inputs
 
 ```{python}
 #| vscode: {languageId: python}
@@ -499,6 +493,7 @@ L.name = "L"
 ```
 
 And then using Breadth First Search to do 3 things:
+
  - Find all nodes
  - Find all edges
  - Find all paths from $L$ to our parameters
@@ -534,7 +529,7 @@ while stack:
         edges.append((hash(node), hash(arg)))
 ```
 
-Now we've got all of the edges and nodes, we have complete knowledge of our computational graph. Lets use networkx to plot it
+Now we've got all of the edges and nodes, we have complete knowledge of our computational graph.  let's use networkx to plot it
 
 ```{python}
 #| vscode: {languageId: python}
@@ -554,7 +549,7 @@ pos = nx.nx_agraph.pygraphviz_layout(graph, prog="dot")
 nx.draw(graph, pos=pos, labels=labels)
 ```
 
-If you squint a bit, you can see that this looks like to the graph we made earlier! Lets take a look at the paths the algorithm found from $L$ to $x$.
+If you squint a bit, you can see that this looks like to the graph we made earlier! let's take a look at the paths the algorithm found from $L$ to $x$.
 
 ```{python}
 #| vscode: {languageId: python}
@@ -623,7 +618,7 @@ while stack:
         edges.append((hash(node), hash(arg)))
 ```
 
-Lets check if the derivatives were recorded correctly.
+let's check if the derivatives were recorded correctly.
 
 ```{python}
 #| vscode: {languageId: python}
@@ -632,9 +627,9 @@ for chain in x.chains:
     print(chain)
 ```
 
-Looks reasonable so far. We have 2 identical paths, each with 4 derivatives (one for each edge in the path) as expected.
+Looks reasonable so far.  We have 2 identical paths, each with 4 derivatives (one for each edge in the path) as expected.
 
-Lets multiply the derivatives together along each path and add the total for each path together and see if we get the right answer. 
+let's multiply the derivatives together along each path and add the total for each path together and see if we get the right answer.  
 
 According my calculations (and [Wolfram Alpha](https://www.wolframalpha.com/)) the derivative of $L$ wrt $x$ is:
 $$\frac{\partial L}{\partial x} = 2m (c + mx - y)$$
@@ -653,11 +648,11 @@ for chain in x.chains:
 total_derivative
 ```
 
-The correct answer! It looks like our algorithm works. All that remains is to put all the peices together.
+The correct answer! It looks like our algorithm works.  All that remains is to put all the peices together.
 
 ## Putting it all together
 
-When dreaming up the algorithm, we kept a record of the nodes, edges and paths which made plotting and debugging easier. Now that we know that it works, we can remove these and simplify things a bit.
+When dreaming up the algorithm, we kept a record of the nodes, edges and paths which made plotting and debugging easier.  Now that we know that it works, we can remove these and simplify things a bit.
 
 ```{python}
 #| vscode: {languageId: python}
@@ -680,7 +675,7 @@ def backward(root_node: Tensor) -> None:
             stack.append((arg, current_derivative + [op]))
 ```
 
-There is also no need (for now) to store the derivatives and calculate them separately. Instead, we can avoid a bunch of repeated calculations by multiplying the derivatives as we go.
+There is also no need (for now) to store the derivatives and calculate them separately.  Instead, we can avoid a bunch of repeated calculations by multiplying the derivatives as we go.
 
 ```{python}
 # | vscode: {languageId: python}
@@ -704,7 +699,7 @@ def backward(root_node: Tensor) -> None:
             stack.append((arg, _mul(current_derivative, derivative)))
 ```
 
-Lets make sure we didn't break anything
+let's make sure we didn't break anything
 
 ```{python}
 #| vscode: {languageId: python}
@@ -723,7 +718,7 @@ print(f"{x.derivative = }\n")
 test(got=x.derivative.value, want=36)
 ```
 
-Lets put this algorithm into our Tensor object
+let's put this algorithm into our Tensor object
 
 ```{python}
 # | vscode: {languageId: python}
@@ -734,7 +729,7 @@ class Tensor:
 
     args: tuple[Tensor] = ()
     local_derivatives: tuple[Tensor] = ()
-    # The derivative (once we've calculated it). This is None if the derivative
+    # The derivative (once we've calculated it).  This is None if the derivative
     # has not been computed yet
     derivative: Tensor | None = None
 
@@ -769,7 +764,7 @@ class Tensor:
                 stack.append((arg, new_derivative))
 ```
 
-Lets try it out
+let's try it out
 
 ```{python}
 # | vscode: {languageId: python}
@@ -789,9 +784,9 @@ test(x.derivative, Tensor(36))
 
 Huh?
 
-By default, if you compare two objects in python with `==`, python will check whether the object on the left has the same reference as the object as the one on the right. Because `Tensor(36)` is a different object (with the same value)  as `x.derivative`, `x.derivative == Tensor(36)` returns `False`.
+By default, if you compare two objects in python with `==`, python will check whether the object on the left has the same reference as the object as the one on the right.  Because `Tensor(36)` is a different object (that just happens to have the same value) to `x.derivative`, `x.derivative == Tensor(36)` returns `False`.
 
-It makes a lot more sense to compare two tensors based upon their `.value`. To achieve this, we can add the `__eq__` special method to `Tensor` which will change the behaviour of the `==` operator for `Tensor` objects
+It makes a lot more sense to compare two tensors based upon their `.value`.  To achieve this, we can add the `__eq__` special method to `Tensor` which will change the behaviour of the `==` operator for `Tensor` objects
 
 ```{python}
 #| vscode: {languageId: python}
@@ -806,10 +801,11 @@ def __eq__(self, other) -> bool:
     return self.value == other.value
 ```
 
-Similarly, if we try to use `+`, `-` or `*` on our tensors, we'll get an error. We can tell python how to do these operations on our tensors by definining the following special functions:
- - `__add__` lets us use `+`
- - `__sub__` lets us use `-`
- - `__mul__` lets us use `*`
+Similarly, if we try to use `+`, `-` or `*` on our tensors, we'll get an error.  We can tell python how to do these operations on our tensors by defining the following special functions:
+
+ - `__add__` let's us use `+`
+ - `__sub__` let's us use `-`
+ - `__mul__` let's us use `*`
 
 ```{python}
 #| vscode: {languageId: python}
@@ -852,7 +848,7 @@ def __imul__(self, other) -> Tensor:
     return self
 ```
 
-While we're here, lets clean up our backward function a bit by replacing the ugly `_add` and `_mul` operations with `+` and `*`.
+While we're here, let's clean up our backward function a bit by replacing the ugly `_add` and `_mul` operations with `+` and `*`.
 
 ```{python}
 #| vscode: {languageId: python}
@@ -892,7 +888,7 @@ class Tensor:
 
     args: tuple[Tensor] = ()
     local_derivatives: tuple[Tensor] = ()
-    # The derivative (once we've calculated it). This is None if the derivative
+    # The derivative (once we've calculated it).  This is None if the derivative
     # has not been computed yet
     derivative: Tensor | None = None
 
@@ -959,7 +955,7 @@ class Tensor:
                 stack.append((arg, current_derivative * derivative))
 ```
 
-Lets take it for a spin. We'll try calculating $L$ again
+let's take it for a spin.  We'll try calculating $L$ again
 
 ```{python}
 #| vscode: {languageId: python}
@@ -985,7 +981,7 @@ $$\frac{d f(x)}{dx} = -38 + 102 x - 33 x^2 + 8 x^3 + 30 x^4$$
 
 If we plug 2 into this equation, the answer is apparently 578 (again, thanks to [Wolfram Alpha](https://www.wolframalpha.com/)).
 
-Lets try it with our algorithm
+let's try it with our algorithm
 
 ```{python}
 #| vscode: {languageId: python}
@@ -1006,9 +1002,9 @@ test(got=x.derivative, want=Tensor(578))
 Once again, we got the right answer!
 
 # Conclusion
-From nothing, we have now written an algorithm that will let us differentiate any mathematical expression (provided it only involves addition, subtraction and multiplication). We did this by converting our expression into a graph and reimagining partial derivatives as operations on the edges of that graph. Then we found that could apply Breadth First Search to combine all the derivatives together to get a final answer.
+From nothing, we have now written an algorithm that will let us differentiate any mathematical expression (provided it only involves addition, subtraction and multiplication).  We did this by converting our expression into a graph and reimagining partial derivatives as operations on the edges of that graph.  Then we found that could apply Breadth First Search to combine all the derivatives together to get a final answer.
 
-Differentiating scalars is (I hope you agree) interesting, but it isn't exactly GPT-4. That said, with a few small modifications to our algorithm, we can extend our algorithm to handle multi-dimensional tensors like matrices and vectors. Once you can do that, you can build up to the backpropagation and, eventually, to a fully functional language model.
+Differentiating scalars is (I hope you agree) interesting, but it isn't exactly GPT-4.  That said, with a few small modifications to our algorithm, we can extend our algorithm to handle multi-dimensional tensors like matrices and vectors.  Once you can do that, you can build up to the backpropagation and, eventually, to a fully functional language model.
 
-Next time, we'll extend our algorithm to vectors and matrices and build up from their to a working neural network. If you want to peak ahead, you can check out the repo for [Tricycle](https://github.com/bclarkson-code/Tricycle) which is the name for the deep learning framework we're building.
+Next time, we'll extend our algorithm to vectors and matrices and build up from their to a working neural network.  If you want to peak ahead, you can check out the repo for [Tricycle](https://github.com/bclarkson-code/Tricycle) which is the name for the deep learning framework we're building.
 
