@@ -220,30 +220,33 @@ window.Quarto = {
 
 
 
-<div id="bc2eb8de" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="1">
+<!-- Google tag (gtag.js) -->
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-KG3BJCW6QN"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-KG3BJCW6QN');
+</script>
+<div id="b65921df" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="1">
 <details class="code-fold">
 <summary>Setup</summary>
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> typing <span class="im">import</span> Any, Optional</span>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> typing <span class="im">import</span> Any, Optional, List</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> networkx <span class="im">as</span> nx</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <section id="llm-from-scratch-automatic-differentiation" class="level2">
 <h2 class="anchored" data-anchor-id="llm-from-scratch-automatic-differentiation">LLM from scratch: Automatic Differentiation</h2>
-<p>I’m building a modern language model with all the bells and whistles completely from scratch: from vanilla python to functional coding assistant. Borrowing (shamelessly stealing) from computer games, I’ve built a tech tree of everything that I think I’ll need to implement to get a fully functional language model. If you think anything is missing, please let me <a href="mailto:bclarkson-code@proton.me">know</a>:</p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="images/tech_tree_post_1.png" class="img-fluid figure-img" width="700"></p>
-<figcaption>The LLM from scratch tech tree</figcaption>
-</figure>
-</div>
-<p>Before we can move onto building modern features like Rotary Positional Encodings, we first need to figure out how to differentiate with a computer. The backpropagation algorithm that underpins the entire field of Deep Learning requires the ability to differentiate the outputs of neural networks with respect to (wrt) their inputs. In this post, we’ll go from nothing to a (admittedly very limited) automatic differentiation library that can differentiate arbitrary functions of scalar values.</p>
-<p>This one algorithm will form the core of out deep learning library that, eventually, will include everything we need to train a language model.</p>
+<p>I’m building a modern language model with all the bells and whistles completely from scratch: from vanilla python to functional coding assistant. Borrowing (shamelessly stealing) from computer games, I’ve built a tech tree of everything that I think I’ll need to implement to get a fully functional language model. If you think anything is missing, <a href="mailto:bclarkson-code@proton.me">please let me know</a>:</p>
+<p><img src="images/tech_tree_post_1.png" class="img-fluid" width="700" alt="The LLM from scratch tech tree"> Before we can move onto building modern features like <a href="https://arxiv.org/abs/2104.09864">Rotary Positional Encodings</a>, we first need to figure out how to differentiate with a computer. The backpropagation algorithm that underpins the entire field of Deep Learning requires the ability to differentiate the outputs of neural networks with respect to (wrt) their inputs. In this post, we’ll go from nothing to a (admittedly very limited) automatic differentiation library that can differentiate arbitrary functions of scalar values.</p>
+<p>This one algorithm will form the core of our deep learning library that, eventually, will include everything we need to train a language model.</p>
 </section>
 <section id="creating-a-tensor" class="level2">
 <h2 class="anchored" data-anchor-id="creating-a-tensor">Creating a tensor</h2>
 <p>We can’t do any differentiation if we don’t have any numbers to differentiate. We’ll want to add some extra functionality that is in standard <code>float</code> types so we’ll need to create out own. let’s call it a <code>Tensor</code>.</p>
-<div id="87c6cfca" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="2">
+<div id="bec24cdd" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Tensor:</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Just a number (for now)</span></span>
@@ -274,12 +277,12 @@ window.Quarto = {
 <span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a><span class="co"># try it out</span></span>
 <span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>Tensor(<span class="dv">5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display" data-execution_count="2">
+<div class="cell-output cell-output-display" data-execution_count="33">
 <pre><code>Tensor(5)</code></pre>
 </div>
 </div>
 <p>Next we’ll need some simple operations we want to perform: addition, subtraction and multiplication.</p>
-<div id="88138e6d" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="3">
+<div id="81a1d892" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> _add(a: Tensor, b: Tensor):</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Add two tensors</span></span>
@@ -301,7 +304,7 @@ window.Quarto = {
 <span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Tensor(a.value <span class="op">*</span> b.value)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>We can use use our operations as follows:</p>
-<div id="bfac3b6a" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="4">
+<div id="4792ebe7" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test(got: Any, want: Any):</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Check that two objects are equal to each other</span></span>
@@ -326,7 +329,7 @@ window.Quarto = {
 </section>
 <section id="scalar-derivatives" class="level2">
 <h2 class="anchored" data-anchor-id="scalar-derivatives">Scalar derivatives</h2>
-<p>Diving straight into differentiating matrices sounds too hard so let’s start with something simpler: differentiating scalars. The simplest scalar derivative I can think of is the derivative of a tensor with respect to (wrt) itself: <span class="math display">\[\frac{dx}{dx} = 1\]</span></p>
+<p>Diving straight into differentiating matrices sounds too hard so let’s start with something simpler: differentiating scalars. The simplest scalar derivative I can think of is differentiating a tensor with respect to itself: <span class="math display">\[\frac{dx}{dx} = 1\]</span></p>
 <p>A more interesting case is the derivative of two tensors added together (note we are using partial derivatives because our function has multiple inputs): <span class="math display">\[f(x, y) = x + y\]</span> <span class="math display">\[\frac{\partial f}{\partial x} = 1\]</span> <span class="math display">\[\frac{\partial f}{\partial y} = 1\]</span></p>
 <p>We can do a similar thing for multiplication and subtraction</p>
 <table class="table">
@@ -364,7 +367,7 @@ window.Quarto = {
 <p>This means that the only information we need to store is the inputs to an operation and a function to calculate the derivative wrt each inputs. With this, we should be able to differentiate any binary function wrt its inputs. A good place to store this information is in the tensor that is produced by the operation.</p>
 <p>We’ll add some new attributes to our <code>Tensor</code>: <code>args</code> and <code>local_derivatives</code>. If the tensor is the output of an operation, then <code>args</code> will store the arguments to the operation and <code>local_derivatives</code> will store the derivatives wrt each input. We’re calling it <code>local_derivatives</code> to avoid confusion when we start nesting functions.</p>
 <p>Once we’ve calculated the derivative (from our <code>args</code> and <code>local_derivatives</code>) we’ll need to store it. It turns out that the neatest place to put this is in tensor that the output is being differentiated wrt. We’ll call this <code>derivative</code></p>
-<div id="1c8bde61" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="5">
+<div id="b7af04b7" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Tensor:</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co">    A number that can be differentiated</span></span>
@@ -400,13 +403,13 @@ window.Quarto = {
 <span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="ss">f"Tensor(</span><span class="sc">{</span><span class="va">self</span><span class="sc">.</span>value<span class="sc">}</span><span class="ss">)"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>For example, if we have</p>
-<div id="57e491c3" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="6">
+<div id="d61b786e" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>a <span class="op">=</span> Tensor(<span class="dv">3</span>)</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>b <span class="op">=</span> Tensor(<span class="dv">4</span>)</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>output <span class="op">=</span> _mul(a, b)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Then <code>output.args</code> and <code>output.local_derivatives</code> should be equal to should be set to:</p>
+<p>Then <code>output.args</code> and <code>output.local_derivatives</code> should be set to:</p>
 <div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>output.args <span class="op">==</span> (Tensor(<span class="dv">3</span>), Tensor(<span class="dv">4</span>))</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>output.derivatives <span class="op">==</span> (</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    b,  <span class="co"># derivative of output wrt a is b</span></span>
@@ -414,7 +417,7 @@ window.Quarto = {
 <span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Once we have actually computed the derivatives, then the derivative of <code>output</code> wrt <code>a</code> will be stored in <code>a.derivative</code> and should be equal to <code>b</code> (which is 4 in this case).</p>
 <p>We know that we’ve done everything right once these tests pass:</p>
-<div id="a1e8c6ab" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="7">
+<div id="5fd4422b" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="7">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>a <span class="op">=</span> Tensor(<span class="dv">3</span>)</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>b <span class="op">=</span> Tensor(<span class="dv">4</span>)</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -424,8 +427,8 @@ window.Quarto = {
 <span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>test(got<span class="op">=</span>output.args, want<span class="op">=</span>(a, b))</span>
 <span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>test(got<span class="op">=</span>output.local_derivatives, want<span class="op">=</span>(b, a))</span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>test(a.derivative, b)</span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>test(b.derivative, a)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>test(got<span class="op">=</span>a.derivative, want<span class="op">=</span>b)</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>test(got<span class="op">=</span>b.derivative, want<span class="op">=</span>a)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>❌ - Want: (Tensor(3), Tensor(4)), Got: ()
 ❌ - Want: (Tensor(4), Tensor(3)), Got: ()
@@ -434,7 +437,7 @@ window.Quarto = {
 </div>
 </div>
 <p>First, let’s add a function to our <code>Tensor</code> that will actually calculate the derivatives for each of the function arguments. Pytorch calls this function <code>backward</code> so we’ll do the same.</p>
-<div id="432ce674" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="8">
+<div id="e6eb397e" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="8">
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Tensor:</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="co">    A number that can be differentiated</span></span>
@@ -449,37 +452,45 @@ window.Quarto = {
 <span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>    <span class="co"># The derivative we have calculated</span></span>
 <span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>    derivative: Optional[<span class="st">"Tensor"</span>] <span class="op">=</span> <span class="va">None</span></span>
 <span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, value: <span class="bu">float</span>):</span>
-<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.value <span class="op">=</span> value</span>
-<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> backward(<span class="va">self</span>):</span>
-<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="va">self</span>.args <span class="kw">is</span> <span class="va">None</span> <span class="kw">or</span> <span class="va">self</span>.local_derivatives <span class="kw">is</span> <span class="va">None</span>:</span>
-<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>            <span class="cf">raise</span> <span class="pp">ValueError</span>(</span>
-<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>                <span class="st">"Cannot differentiate a Tensor that is not a function of other Tensors"</span></span>
-<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>            )</span>
-<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> arg, derivative <span class="kw">in</span> <span class="bu">zip</span>(<span class="va">self</span>.args, <span class="va">self</span>.local_derivatives):</span>
-<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>            arg.derivative <span class="op">=</span> derivative</span>
-<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__repr__</span>(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
-<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""</span></span>
-<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a><span class="co">        Create a printable string representation of this</span></span>
-<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a><span class="co">        object</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>    <span class="co"># optionally give this tensor a name</span></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>    name: Optional[<span class="bu">str</span>] <span class="op">=</span> <span class="va">None</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Later, we'll want to record the path we followed to get</span></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>    <span class="co"># to this tensor and some operations we did along the way</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>    <span class="co"># don't worry about these for now</span></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>    paths: List[Tensor] <span class="op">=</span> <span class="va">None</span></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>    chains: List[Tensor] <span class="op">=</span> <span class="va">None</span></span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, value: <span class="bu">float</span>):</span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.value <span class="op">=</span> value</span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> backward(<span class="va">self</span>):</span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="va">self</span>.args <span class="kw">is</span> <span class="va">None</span> <span class="kw">or</span> <span class="va">self</span>.local_derivatives <span class="kw">is</span> <span class="va">None</span>:</span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>            <span class="cf">raise</span> <span class="pp">ValueError</span>(</span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>                <span class="st">"Cannot differentiate a Tensor that is not a function of other Tensors"</span></span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>            )</span>
 <span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a><span class="co">        This function gets called when you pass a Tensor to print</span></span>
-<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a><span class="co">        Without this function:</span></span>
-<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a><span class="co">        &gt;&gt;&gt; print(Tensor(5))</span></span>
-<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a><span class="co">        &lt;__main__.Tensor at 0x104fd1950&gt;</span></span>
-<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a><span class="co">        With this function:</span></span>
-<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a><span class="co">        &gt;&gt;&gt; print(Tensor(5))</span></span>
-<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a><span class="co">        Tensor(5)</span></span>
-<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a><span class="co">        """</span></span>
-<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="ss">f"Tensor(</span><span class="sc">{</span><span class="va">self</span><span class="sc">.</span>value<span class="sc">}</span><span class="ss">)"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> arg, derivative <span class="kw">in</span> <span class="bu">zip</span>(<span class="va">self</span>.args, <span class="va">self</span>.local_derivatives):</span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a>            arg.derivative <span class="op">=</span> derivative</span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__repr__</span>(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""</span></span>
+<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a><span class="co">        Create a printable string representation of this</span></span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a><span class="co">        object</span></span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a><span class="co">        This function gets called when you pass a Tensor to print</span></span>
+<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a><span class="co">        Without this function:</span></span>
+<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a><span class="co">        &gt;&gt;&gt; print(Tensor(5))</span></span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a><span class="co">        &lt;__main__.Tensor at 0x104fd1950&gt;</span></span>
+<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a><span class="co">        With this function:</span></span>
+<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a><span class="co">        &gt;&gt;&gt; print(Tensor(5))</span></span>
+<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a><span class="co">        Tensor(5)</span></span>
+<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a><span class="co">        """</span></span>
+<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="ss">f"Tensor(</span><span class="sc">{</span><span class="va">self</span><span class="sc">.</span>value<span class="sc">}</span><span class="ss">)"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>This only works if we also store the arguments and derivatives in the output tensors of operations</p>
-<div id="a2a009fd" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="9">
+<div id="1341a314" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="9">
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> _add(a: Tensor, b: Tensor):</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Add two tensors</span></span>
@@ -509,8 +520,8 @@ window.Quarto = {
 <span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>    result.args <span class="op">=</span> (a, b)</span>
 <span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> result</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>let’s re-run our tests and see if it works</p>
-<div id="85cb385c" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="10">
+<p>Let’s re-run our tests and see if it works</p>
+<div id="f22992eb" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="10">
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>a <span class="op">=</span> Tensor(<span class="dv">3</span>)</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>b <span class="op">=</span> Tensor(<span class="dv">4</span>)</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -530,7 +541,7 @@ window.Quarto = {
 </div>
 </div>
 <p>So far so good, let’s try nesting operations.</p>
-<div id="37310aaf" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="11">
+<div id="8de0bb11" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="11">
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>a <span class="op">=</span> Tensor(<span class="dv">3</span>)</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>b <span class="op">=</span> Tensor(<span class="dv">4</span>)</span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -552,7 +563,7 @@ window.Quarto = {
 </section>
 <section id="chaining-functions-together" class="level2">
 <h2 class="anchored" data-anchor-id="chaining-functions-together">Chaining Functions Together</h2>
-<p>To calculate derivates of nested functions, we can use a rule from calculus: The Chain Rule.</p>
+<p>To calculate derivatives of nested functions, we can use a rule from calculus: The Chain Rule.</p>
 <p>For a variable <span class="math inline">\(z\)</span> generated by nested functions <span class="math inline">\(f\)</span> and <span class="math inline">\(g\)</span> such that <span class="math display">\[z = f(g(x))\]</span></p>
 <p>Then the derivative of <span class="math inline">\(z\)</span> wrt <span class="math inline">\(x\)</span> is: <span class="math display">\[\frac{\partial z}{\partial x} = \frac{\partial f(u)}{\partial u} \frac{\partial g(x)}{\partial x}\]</span></p>
 <p>Here, <span class="math inline">\(u\)</span> is a dummy variable. <span class="math inline">\(\frac{\partial f(u)}{\partial u}\)</span> means the derivative of <span class="math inline">\(f\)</span> wrt its input.</p>
@@ -646,7 +657,7 @@ window.Quarto = {
 <p>Adding these together, we get <span class="math inline">\((x+c) + x = 2x + c\)</span></p>
 <p>If we work out the derivative algebraically:</p>
 <p><span class="math display">\[\frac{\partial z}{\partial x} = \frac{\partial}{\partial x}((x+c)x) = \frac{\partial}{\partial x}(x^2 + cx) = \frac{\partial x^2}{\partial x} + c\frac{\partial x}{\partial x} = 2x + c\]</span></p>
-<p>We can see that it seems to work! (Calculating <span class="math inline">\(\frac{\partial z}{\partial c}\)</span> is left as an exercise for the reader)</p>
+<p>We can see that it seems to work! Calculating <span class="math inline">\(\frac{\partial z}{\partial c}\)</span> is left as an exercise for the reader (I’ve always wanted to say that).</p>
 <p>To summarise, we have invented the following algorithm for calculating of a variable wrt its inputs:</p>
 <ol type="1">
 <li>Turn the equation into a graph</li>
@@ -659,10 +670,10 @@ window.Quarto = {
 </section>
 <section id="the-algorithm" class="level3">
 <h3 class="anchored" data-anchor-id="the-algorithm">The Algorithm™</h3>
-<p>Suprisingly, we have actually already converted our functions into graphs. If you recall, when we generate a tensor from an operation, we record the inputs to the operation in the output tensor (in <code>.args</code>). We also stored the functions to calculate derivatives for each of the inputs in <code>.local_derivatives</code> which means that we know both the destination and derivative for every edge that points to a given node. This means that we’ve already completed steps 1 and 2.</p>
+<p>Surprisingly, we have actually already converted our functions into graphs. If you recall, when we generate a tensor from an operation, we record the inputs to the operation in the output tensor (in <code>.args</code>). We also stored the functions to calculate derivatives for each of the inputs in <code>.local_derivatives</code> which means that we know both the destination and derivative for every edge that points to a given node. This means that we’ve already completed steps 1 and 2.</p>
 <p>The next challenge is to find all paths from the tensor we want to differentiate to the input tensors that created it. Because none of our operations are self referential (outputs are never fed back in as inputs), and all of our edges have a direction, our graph of operations is a directed acyclic graph or DAG. The property of the graph having no cycles means that we can find all paths to every parameter pretty easily with a Breadth First Search (or Depth First Search but BFS makes some optimisations easier as we’ll see in part 2).</p>
 <p>To try it out, let’s recreate that giant graph we made earlier. We can do this by first calculating <span class="math inline">\(L\)</span> from the inputs</p>
-<div id="5f0c8b4c" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="12">
+<div id="cb0c8b4f" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="12">
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> Tensor(<span class="dv">1</span>)</span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>m <span class="op">=</span> Tensor(<span class="dv">2</span>)</span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> Tensor(<span class="dv">3</span>)</span>
@@ -689,7 +700,7 @@ window.Quarto = {
 <li>Find all paths from <span class="math inline">\(L\)</span> to our parameters</li>
 </ul>
 <p>We haven’t implemented a simple way to check whether two tensors are identical so we’ll need compare hashes.</p>
-<div id="4b5ce064" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="13">
+<div id="a5e403f7" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="13">
 <div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>edges <span class="op">=</span> []</span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>stack <span class="op">=</span> [(L, [L])]</span>
@@ -706,7 +717,7 @@ window.Quarto = {
 <span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>    <span class="co"># because it wasn't created by an operation) then</span></span>
 <span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>    <span class="co"># record the path taken to get here</span></span>
 <span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> node.args:</span>
-<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">not</span> <span class="bu">hasattr</span>(node, <span class="st">"paths"</span>):</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> node.paths <span class="kw">is</span> <span class="va">None</span>:</span>
 <span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>            node.paths <span class="op">=</span> []</span>
 <span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>        node.paths.append(current_path)</span>
 <span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>        <span class="cf">continue</span></span>
@@ -717,16 +728,16 @@ window.Quarto = {
 <span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a>        edges.append((<span class="bu">hash</span>(node), <span class="bu">hash</span>(arg)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Now we’ve got all of the edges and nodes, we have complete knowledge of our computational graph. let’s use networkx to plot it</p>
-<div id="152ef641" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="14">
+<div id="ab8363b1" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="14">
 <div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Assign a unique integer to each</span></span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="co"># unnamed node so we know which</span></span>
 <span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="co"># node is which in the picture</span></span>
 <span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> {}</span>
 <span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i, node <span class="kw">in</span> <span class="bu">enumerate</span>(nodes):</span>
-<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="bu">hasattr</span>(node, <span class="st">"name"</span>):</span>
-<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>        labels[<span class="bu">hash</span>(node)] <span class="op">=</span> node.name</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> node.name <span class="kw">is</span> <span class="va">None</span>:</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>        labels[<span class="bu">hash</span>(node)] <span class="op">=</span> <span class="bu">str</span>(i)</span>
 <span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:</span>
-<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>        labels[<span class="bu">hash</span>(node)] <span class="op">=</span> <span class="bu">str</span>(i)</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>        labels[<span class="bu">hash</span>(node)] <span class="op">=</span> node.name</span>
 <span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>graph <span class="op">=</span> nx.DiGraph()</span>
 <span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>graph.add_edges_from(edges)</span>
@@ -741,7 +752,7 @@ window.Quarto = {
 </div>
 </div>
 <p>If you squint a bit, you can see that this looks like to the graph we made earlier! let’s take a look at the paths the algorithm found from <span class="math inline">\(L\)</span> to <span class="math inline">\(x\)</span>.</p>
-<div id="7490a85e" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="15">
+<div id="5b65b76a" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="15">
 <div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> path <span class="kw">in</span> x.paths:</span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>    steps <span class="op">=</span> []</span>
 <span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> step <span class="kw">in</span> path:</span>
@@ -753,7 +764,7 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 </div>
 </div>
 <p>The paths look correct! All we need to do now is to modify the algorithm a bit to keep track of the chain of derivatives along each path.</p>
-<div id="6dcd0e84" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="16">
+<div id="19de7869" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="16">
 <div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> Tensor(<span class="dv">1</span>)</span>
 <span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>m <span class="op">=</span> Tensor(<span class="dv">2</span>)</span>
 <span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> Tensor(<span class="dv">3</span>)</span>
@@ -771,14 +782,14 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 <span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>c.name <span class="op">=</span> <span class="st">"c"</span></span>
 <span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a>L.name <span class="op">=</span> <span class="st">"L"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div id="209dccd9" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="17">
+<div id="b9f5eca6" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="17">
 <div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>stack <span class="op">=</span> [(L, [L], [])]</span>
 <span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>nodes <span class="op">=</span> []</span>
 <span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>edges <span class="op">=</span> []</span>
 <span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> stack:</span>
 <span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>    node, current_path, current_chain <span class="op">=</span> stack.pop()</span>
-<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Record nodes we havent seen before</span></span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Record nodes we haven't seen before</span></span>
 <span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="bu">hash</span>(node) <span class="kw">not</span> <span class="kw">in</span> [<span class="bu">hash</span>(n) <span class="cf">for</span> n <span class="kw">in</span> nodes]:</span>
 <span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>        nodes.append(node)</span>
 <span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a></span>
@@ -786,27 +797,26 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 <span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>    <span class="co"># because it wasn't created by an operation) then</span></span>
 <span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>    <span class="co"># record the path taken to get here</span></span>
 <span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> node.args:</span>
-<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">not</span> <span class="bu">hasattr</span>(node, <span class="st">"paths"</span>):</span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> node.paths <span class="kw">is</span> <span class="va">None</span>:</span>
 <span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>            node.paths <span class="op">=</span> []</span>
-<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a>        node.paths.append(current_path)</span>
-<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">not</span> <span class="bu">hasattr</span>(node, <span class="st">"chains"</span>):</span>
-<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a>            node.chains <span class="op">=</span> []</span>
-<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a>        node.chains.append(current_chain)</span>
-<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a>        <span class="cf">continue</span></span>
-<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> arg, op <span class="kw">in</span> <span class="bu">zip</span>(node.args, node.local_derivatives):</span>
-<span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a>        next_node <span class="op">=</span> arg</span>
-<span id="cb24-26"><a href="#cb24-26" aria-hidden="true" tabindex="-1"></a>        next_path <span class="op">=</span> current_path <span class="op">+</span> [arg]</span>
-<span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a>        next_chain <span class="op">=</span> current_chain <span class="op">+</span> [op]</span>
-<span id="cb24-28"><a href="#cb24-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-29"><a href="#cb24-29" aria-hidden="true" tabindex="-1"></a>        stack.append((arg, next_path, next_chain))</span>
-<span id="cb24-30"><a href="#cb24-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-31"><a href="#cb24-31" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Record every new edge</span></span>
-<span id="cb24-32"><a href="#cb24-32" aria-hidden="true" tabindex="-1"></a>        edges.append((<span class="bu">hash</span>(node), <span class="bu">hash</span>(arg)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> node.chains <span class="kw">is</span> <span class="va">None</span>:</span>
+<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a>            node.chains <span class="op">=</span> []</span>
+<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a>        node.paths.append(current_path)</span>
+<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a>        node.chains.append(current_chain)</span>
+<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a>        <span class="cf">continue</span></span>
+<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> arg, op <span class="kw">in</span> <span class="bu">zip</span>(node.args, node.local_derivatives):</span>
+<span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a>        next_node <span class="op">=</span> arg</span>
+<span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a>        next_path <span class="op">=</span> current_path <span class="op">+</span> [arg]</span>
+<span id="cb24-26"><a href="#cb24-26" aria-hidden="true" tabindex="-1"></a>        next_chain <span class="op">=</span> current_chain <span class="op">+</span> [op]</span>
+<span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-28"><a href="#cb24-28" aria-hidden="true" tabindex="-1"></a>        stack.append((arg, next_path, next_chain))</span>
+<span id="cb24-29"><a href="#cb24-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-30"><a href="#cb24-30" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Record every new edge</span></span>
+<span id="cb24-31"><a href="#cb24-31" aria-hidden="true" tabindex="-1"></a>        edges.append((<span class="bu">hash</span>(node), <span class="bu">hash</span>(arg)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>let’s check if the derivatives were recorded correctly.</p>
-<div id="14132867" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="18">
+<p>Let’s check if the derivatives were recorded correctly.</p>
+<div id="d72fde23" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="18">
 <div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Number of chains: </span><span class="sc">{</span><span class="bu">len</span>(x.chains)<span class="sc">}</span><span class="ss">"</span>)</span>
 <span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> chain <span class="kw">in</span> x.chains:</span>
 <span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(chain)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -817,9 +827,9 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 </div>
 </div>
 <p>Looks reasonable so far. We have 2 identical paths, each with 4 derivatives (one for each edge in the path) as expected.</p>
-<p>let’s multiply the derivatives together along each path and add the total for each path together and see if we get the right answer.</p>
+<p>Let’s multiply the derivatives together along each path and add the total for each path together and see if we get the right answer.</p>
 <p>According my calculations (and <a href="https://www.wolframalpha.com/">Wolfram Alpha</a>) the derivative of <span class="math inline">\(L\)</span> wrt <span class="math inline">\(x\)</span> is: <span class="math display">\[\frac{\partial L}{\partial x} = 2m (c + mx - y)\]</span> Plugging the values for our tensors in, we get <span class="math display">\[2\times2 (4 + (2\times3) - 1) = 36\]</span></p>
-<div id="84272c6e" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="19">
+<div id="3ab96b41" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="19">
 <div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>total_derivative <span class="op">=</span> Tensor(<span class="dv">0</span>)</span>
 <span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> chain <span class="kw">in</span> x.chains:</span>
 <span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>    chain_total <span class="op">=</span> Tensor(<span class="dv">1</span>)</span>
@@ -828,17 +838,17 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 <span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>    total_derivative <span class="op">=</span> _add(total_derivative, chain_total)</span>
 <span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>total_derivative</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display" data-execution_count="19">
+<div class="cell-output cell-output-display" data-execution_count="50">
 <pre><code>Tensor(36)</code></pre>
 </div>
 </div>
-<p>The correct answer! It looks like our algorithm works. All that remains is to put all the peices together.</p>
+<p>The correct answer! It looks like our algorithm works. All that remains is to put all the pieces together.</p>
 </section>
 </section>
 <section id="putting-it-all-together" class="level2">
 <h2 class="anchored" data-anchor-id="putting-it-all-together">Putting it all together</h2>
 <p>When dreaming up the algorithm, we kept a record of the nodes, edges and paths which made plotting and debugging easier. Now that we know that it works, we can remove these and simplify things a bit.</p>
-<div id="7080ff4b" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="20">
+<div id="ec16a4f2" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="20">
 <div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> backward(root_node: Tensor) <span class="op">-&gt;</span> <span class="va">None</span>:</span>
 <span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>    stack <span class="op">=</span> [(root_node, [])]</span>
 <span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -849,8 +859,8 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 <span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>        <span class="co"># because it wasn't created by an operation) then</span></span>
 <span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>        <span class="co"># record the path taken to get here</span></span>
 <span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">not</span> node.args:</span>
-<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="kw">not</span> <span class="bu">hasattr</span>(node, <span class="st">"chain"</span>):</span>
-<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a>                node.chain <span class="op">=</span> []</span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> node.chains <span class="kw">is</span> <span class="va">None</span>:</span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a>                node.chains <span class="op">=</span> []</span>
 <span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a>            node.chain.append(current_derivative)</span>
 <span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a>            <span class="cf">continue</span></span>
 <span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a></span>
@@ -858,7 +868,7 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 <span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a>            stack.append((arg, current_derivative <span class="op">+</span> [op]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>There is also no need (for now) to store the derivatives and calculate them separately. Instead, we can avoid a bunch of repeated calculations by multiplying the derivatives as we go.</p>
-<div id="d502f69d" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="21">
+<div id="bf95ef81" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="21">
 <div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> backward(root_node: Tensor) <span class="op">-&gt;</span> <span class="va">None</span>:</span>
 <span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>    stack <span class="op">=</span> [(root_node, Tensor(<span class="dv">1</span>))]</span>
 <span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -878,8 +888,8 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 <span id="cb30-17"><a href="#cb30-17" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> arg, derivative <span class="kw">in</span> <span class="bu">zip</span>(node.args, node.local_derivatives):</span>
 <span id="cb30-18"><a href="#cb30-18" aria-hidden="true" tabindex="-1"></a>            stack.append((arg, _mul(current_derivative, derivative)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>let’s make sure we didn’t break anything</p>
-<div id="91a022c8" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="22">
+<p>Let’s make sure we didn’t break anything</p>
+<div id="92c3573d" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="22">
 <div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> Tensor(<span class="dv">1</span>)</span>
 <span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>m <span class="op">=</span> Tensor(<span class="dv">2</span>)</span>
 <span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> Tensor(<span class="dv">3</span>)</span>
@@ -900,7 +910,7 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 </div>
 </div>
 <p>let’s put this algorithm into our Tensor object</p>
-<div id="44e8e9b3" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="23">
+<div id="7dccc543" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="23">
 <div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Tensor:</span>
 <span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
 <span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a><span class="co">    A float that can be differentiated</span></span>
@@ -933,7 +943,7 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 <span id="cb33-30"><a href="#cb33-30" aria-hidden="true" tabindex="-1"></a>            <span class="co"># because it wasn't created by an operation) then add the</span></span>
 <span id="cb33-31"><a href="#cb33-31" aria-hidden="true" tabindex="-1"></a>            <span class="co"># derivative</span></span>
 <span id="cb33-32"><a href="#cb33-32" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="kw">not</span> node.args:</span>
-<span id="cb33-33"><a href="#cb33-33" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> <span class="kw">not</span> <span class="bu">hasattr</span>(node, <span class="st">"derivative"</span>) <span class="kw">or</span> node.derivative <span class="kw">is</span> <span class="va">None</span>:</span>
+<span id="cb33-33"><a href="#cb33-33" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> node.derivative <span class="kw">is</span> <span class="va">None</span>:</span>
 <span id="cb33-34"><a href="#cb33-34" aria-hidden="true" tabindex="-1"></a>                    node.derivative <span class="op">=</span> Tensor(<span class="dv">0</span>)</span>
 <span id="cb33-35"><a href="#cb33-35" aria-hidden="true" tabindex="-1"></a>                node.derivative <span class="op">=</span> _add(node.derivative, current_derivative)</span>
 <span id="cb33-36"><a href="#cb33-36" aria-hidden="true" tabindex="-1"></a>                <span class="cf">continue</span></span>
@@ -942,8 +952,8 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 <span id="cb33-39"><a href="#cb33-39" aria-hidden="true" tabindex="-1"></a>                new_derivative <span class="op">=</span> _mul(current_derivative, derivative)</span>
 <span id="cb33-40"><a href="#cb33-40" aria-hidden="true" tabindex="-1"></a>                stack.append((arg, new_derivative))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>let’s try it out</p>
-<div id="9c170eff" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="24">
+<p>Let’s try it out</p>
+<div id="8c958246" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="24">
 <div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> Tensor(<span class="dv">1</span>)</span>
 <span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>m <span class="op">=</span> Tensor(<span class="dv">2</span>)</span>
 <span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> Tensor(<span class="dv">3</span>)</span>
@@ -963,7 +973,7 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 <p>Huh?</p>
 <p>By default, if you compare two objects in python with <code>==</code>, python will check whether the object on the left has the same reference as the object as the one on the right. Because <code>Tensor(36)</code> is a different object (that just happens to have the same value) to <code>x.derivative</code>, <code>x.derivative == Tensor(36)</code> returns <code>False</code>.</p>
 <p>It makes a lot more sense to compare two tensors based upon their <code>.value</code>. To achieve this, we can add the <code>__eq__</code> special method to <code>Tensor</code> which will change the behaviour of the <code>==</code> operator for <code>Tensor</code> objects</p>
-<div id="c08de1b8" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="25">
+<div id="89a8e348" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="25">
 <div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> <span class="fu">__eq__</span>(<span class="va">self</span>, other) <span class="op">-&gt;</span> <span class="bu">bool</span>:</span>
 <span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
 <span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Tells python to compare .value when applying the `==`</span></span>
@@ -980,7 +990,7 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 <li><code>__sub__</code> let’s us use <code>-</code></li>
 <li><code>__mul__</code> let’s us use <code>*</code></li>
 </ul>
-<div id="bb20e066" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="26">
+<div id="8954192a" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="26">
 <div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> <span class="fu">__add__</span>(<span class="va">self</span>, other) <span class="op">-&gt;</span> Tensor:</span>
 <span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> <span class="bu">isinstance</span>(other, <span class="st">"Tensor"</span>):</span>
 <span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> <span class="pp">TypeError</span>(<span class="ss">f"Cannot add a Tensor to a </span><span class="sc">{</span><span class="bu">type</span>(other)<span class="sc">}</span><span class="ss">"</span>)</span>
@@ -1001,7 +1011,7 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 <span id="cb37-18"><a href="#cb37-18" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> _mul(<span class="va">self</span>, other)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Finally, we can add the <code>__iadd__</code>, <code>__isub__</code> and <code>__imul__</code> methods to allow us to use <code>+=</code>, <code>-=</code> and <code>*=</code>.</p>
-<div id="c9ef2f92" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="27">
+<div id="9964613c" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="27">
 <div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> <span class="fu">__iadd__</span>(<span class="va">self</span>, other) <span class="op">-&gt;</span> Tensor:</span>
 <span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span> <span class="op">=</span> <span class="va">self</span>.<span class="fu">__add__</span>(<span class="va">self</span>, other)</span>
 <span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="va">self</span></span>
@@ -1017,7 +1027,7 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 <span id="cb38-13"><a href="#cb38-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="va">self</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>While we’re here, let’s clean up our backward function a bit by replacing the ugly <code>_add</code> and <code>_mul</code> operations with <code>+</code> and <code>*</code>.</p>
-<div id="589811ca" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="28">
+<div id="9433df8a" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="28">
 <div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> backward(<span class="va">self</span>):</span>
 <span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="va">self</span>.args <span class="kw">is</span> <span class="va">None</span> <span class="kw">or</span> <span class="va">self</span>.local_derivatives <span class="kw">is</span> <span class="va">None</span>:</span>
 <span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> <span class="pp">ValueError</span>(</span>
@@ -1043,7 +1053,7 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 <span id="cb39-23"><a href="#cb39-23" aria-hidden="true" tabindex="-1"></a>            stack.append((arg, current_derivative <span class="op">*</span> derivative))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Putting all of these improvements together, we get a final <code>Tensor</code> object as follows:</p>
-<div id="af268030" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="29">
+<div id="4a91d735" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="29">
 <div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Tensor:</span>
 <span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
 <span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a><span class="co">    A float that can be differentiated</span></span>
@@ -1117,8 +1127,8 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 <span id="cb40-71"><a href="#cb40-71" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> arg, derivative <span class="kw">in</span> <span class="bu">zip</span>(node.args, node.local_derivatives):</span>
 <span id="cb40-72"><a href="#cb40-72" aria-hidden="true" tabindex="-1"></a>                stack.append((arg, current_derivative <span class="op">*</span> derivative))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>let’s take it for a spin. We’ll try calculating <span class="math inline">\(L\)</span> again</p>
-<div id="32255d46" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="30">
+<p>Let’s take it for a spin. We’ll try calculating <span class="math inline">\(L\)</span> again</p>
+<div id="440af17d" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="30">
 <div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> Tensor(<span class="dv">1</span>)</span>
 <span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>m <span class="op">=</span> Tensor(<span class="dv">2</span>)</span>
 <span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> Tensor(<span class="dv">3</span>)</span>
@@ -1137,8 +1147,8 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 <p>To really see what this baby can do, I asked a language model for the most complicated expression it could think of and it gave me this:</p>
 <p><span class="math display">\[f(x) = (2x^3 + 4x^2 - 5x) \times (3x^2 - 2x + 7) - (6x^4 + 2x^3 - 8x^2) + (5x^2 - 3x)\]</span> According to <a href="https://www.wolframalpha.com/">Wolfram Alpha</a>, the derivative of this expression is: <span class="math display">\[\frac{d f(x)}{dx} = -38 + 102 x - 33 x^2 + 8 x^3 + 30 x^4\]</span></p>
 <p>If we plug 2 into this equation, the answer is apparently 578 (again, thanks to <a href="https://www.wolframalpha.com/">Wolfram Alpha</a>).</p>
-<p>let’s try it with our algorithm</p>
-<div id="b8626e5c" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="31">
+<p>Let’s try it with our algorithm</p>
+<div id="1ec1f40b" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="31">
 <div class="sourceCode cell-code" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> Tensor(<span class="dv">2</span>)</span>
 <span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> (</span>
@@ -1159,9 +1169,9 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 </section>
 <section id="conclusion" class="level1">
 <h1>Conclusion</h1>
-<p>From nothing, we have now written an algorithm that will let us differentiate any mathematical expression (provided it only involves addition, subtraction and multiplication). We did this by converting our expression into a graph and reimagining partial derivatives as operations on the edges of that graph. Then we found that could apply Breadth First Search to combine all the derivatives together to get a final answer.</p>
+<p>From nothing, we have now written an algorithm that will let us differentiate any mathematical expression (provided it only involves addition, subtraction and multiplication). We did this by converting our expression into a graph and re-imagining partial derivatives as operations on the edges of that graph. Then we found that could apply Breadth First Search to combine all the derivatives together to get a final answer.</p>
 <p>Differentiating scalars is (I hope you agree) interesting, but it isn’t exactly GPT-4. That said, with a few small modifications to our algorithm, we can extend our algorithm to handle multi-dimensional tensors like matrices and vectors. Once you can do that, you can build up to the backpropagation and, eventually, to a fully functional language model.</p>
-<p>Next time, we’ll extend our algorithm to vectors and matrices and build up from their to a working neural network. If you want to peak ahead, you can check out the repo for <a href="https://github.com/bclarkson-code/Tricycle">Tricycle</a> which is the name for the deep learning framework we’re building.</p>
+<p>Next time, we’ll extend our algorithm to vectors and matrices and build up from their to a working neural network. If you want to peek ahead, you can check out the repo for <a href="https://github.com/bclarkson-code/Tricycle">Tricycle</a> which is the name for the deep learning framework we’re building.</p>
 
 
 </section>
