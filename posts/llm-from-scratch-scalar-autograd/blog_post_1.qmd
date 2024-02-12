@@ -6,6 +6,15 @@ date: 02/10/2023
 draft: false
 jupyter: python3
 ---
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-KG3BJCW6QN"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-KG3BJCW6QN');
+</script>
 
 ```{python}
 # | vscode: {languageId: python}
@@ -17,13 +26,13 @@ import networkx as nx
 ```
 
 ## LLM from scratch: Automatic Differentiation
-I'm building a modern language model with all the bells and whistles completely from scratch: from vanilla python to functional coding assistant.  Borrowing (shamelessly stealing) from computer games, I've built a tech tree of everything that I think I'll need to implement to get a fully functional language model.  If you think anything is missing, please let me [know](mailto:bclarkson-code@proton.me):  
+I'm building a modern language model with all the bells and whistles completely from scratch: from vanilla python to functional coding assistant.  Borrowing (shamelessly stealing) from computer games, I've built a tech tree of everything that I think I'll need to implement to get a fully functional language model.  If you think anything is missing, [please let me know](mailto:bclarkson-code@proton.me):  
 
 ![The LLM from scratch tech tree](images/tech_tree_post_1.png){width="700"}
 
-Before we can move onto building modern features like Rotary Positional Encodings, we first need to figure out how to differentiate with a computer.  The backpropagation algorithm that underpins the entire field of Deep Learning requires the ability to differentiate the outputs of neural networks with respect to (wrt) their inputs.  In this post, we'll go from nothing to a (admittedly very limited) automatic differentiation library that can differentiate arbitrary functions of scalar values.
+Before we can move onto building modern features like [Rotary Positional Encodings](https://arxiv.org/abs/2104.09864), we first need to figure out how to differentiate with a computer.  The backpropagation algorithm that underpins the entire field of Deep Learning requires the ability to differentiate the outputs of neural networks with respect to (wrt) their inputs.  In this post, we'll go from nothing to a (admittedly very limited) automatic differentiation library that can differentiate arbitrary functions of scalar values.
 
-This one algorithm will form the core of out deep learning library that, eventually, will include everything we need to train a language model.  
+This one algorithm will form the core of our deep learning library that, eventually, will include everything we need to train a language model.  
 
 ## Creating a tensor 
 We can't do any differentiation if we don't have any numbers to differentiate.  We'll want to add some extra functionality that is in standard `float` types so we'll need to create out own.  let's call it a `Tensor`.
@@ -109,7 +118,7 @@ test(_mul(a, b).value, 12)
 ```
 
 ## Scalar derivatives
-Diving straight into differentiating matrices sounds too hard so let's start with something simpler: differentiating scalars.  The simplest scalar derivative I can think of is the derivative of a tensor with respect to (wrt) itself:
+Diving straight into differentiating matrices sounds too hard so let's start with something simpler: differentiating scalars.  The simplest scalar derivative I can think of is differentiating a tensor with respect to itself:
 $$\frac{dx}{dx} = 1$$
 
 A more interesting case is the derivative of two tensors added together (note we are using partial derivatives because our function has multiple inputs):
@@ -180,7 +189,7 @@ b = Tensor(4)
 output = _mul(a, b)
 ```
 
-Then `output.args` and `output.local_derivatives` should be equal to should be set to:
+Then `output.args` and `output.local_derivatives` should be set to:
 
 ```python
 output.args == (Tensor(3), Tensor(4))
@@ -205,14 +214,14 @@ output = _mul(a, b)
 
 test(got=output.args, want=(a, b))
 test(got=output.local_derivatives, want=(b, a))
-test(a.derivative, b)
-test(b.derivative, a)
+test(got=a.derivative, want=b)
+test(got=b.derivative, want=a)
 ```
 
 First, let's add a function to our `Tensor` that will actually calculate the derivatives for each of the function arguments.  Pytorch calls this function `backward` so we'll do the same.
 
 ```{python}
-#| vscode: {languageId: python}
+# | vscode: {languageId: python}
 class Tensor:
     """
     A number that can be differentiated
@@ -226,6 +235,14 @@ class Tensor:
     local_derivatives: tuple["Tensor"] = ()
     # The derivative we have calculated
     derivative: Optional["Tensor"] = None
+
+    # optionally give this tensor a name
+    name: Optional[str] = None
+    # Later, we'll want to record the path we followed to get
+    # to this tensor and some operations we did along the way
+    # dont worry about these for now
+    paths: List[Tensor] = []
+    chain: List[Tensor] = []
 
     def __init__(self, value: float):
         self.value = value
@@ -291,7 +308,7 @@ def _mul(a: Tensor, b: Tensor):
     return result
 ```
 
-let's re-run our tests and see if it works
+Let's re-run our tests and see if it works
 
 ```{python}
 #| vscode: {languageId: python}
@@ -450,7 +467,7 @@ If we work out the derivative algebraically:
 
 $$\frac{\partial z}{\partial x} = \frac{\partial}{\partial x}((x+c)x) = \frac{\partial}{\partial x}(x^2 + cx) = \frac{\partial x^2}{\partial x} + c\frac{\partial x}{\partial x} = 2x + c$$
 
-We can see that it seems to work! (Calculating $\frac{\partial z}{\partial c}$ is left as an exercise for the reader) 
+We can see that it seems to work! Calculating $\frac{\partial z}{\partial c}$ is left as an exercise for the reader (I've always wanted to say that). 
 
 To summarise, we have invented the following algorithm for calculating of a variable wrt its inputs:
 
@@ -518,8 +535,6 @@ while stack:
     # because it wasn't created by an operation) then
     # record the path taken to get here
     if not node.args:
-        if not hasattr(node, "paths"):
-            node.paths = []
         node.paths.append(current_path)
         continue
 
@@ -532,16 +547,16 @@ while stack:
 Now we've got all of the edges and nodes, we have complete knowledge of our computational graph.  let's use networkx to plot it
 
 ```{python}
-#| vscode: {languageId: python}
+# | vscode: {languageId: python}
 # Assign a unique integer to each
 # unnamed node so we know which
 # node is which in the picture
 labels = {}
 for i, node in enumerate(nodes):
-    if hasattr(node, "name"):
-        labels[hash(node)] = node.name
-    else:
+    if node.name is None:
         labels[hash(node)] = str(i)
+    else:
+        labels[hash(node)] = node.name
 
 graph = nx.DiGraph()
 graph.add_edges_from(edges)
@@ -598,12 +613,7 @@ while stack:
     # because it wasn't created by an operation) then
     # record the path taken to get here
     if not node.args:
-        if not hasattr(node, "paths"):
-            node.paths = []
         node.paths.append(current_path)
-
-        if not hasattr(node, "chains"):
-            node.chains = []
         node.chains.append(current_chain)
         continue
 
@@ -618,7 +628,7 @@ while stack:
         edges.append((hash(node), hash(arg)))
 ```
 
-let's check if the derivatives were recorded correctly.
+Let's check if the derivatives were recorded correctly.
 
 ```{python}
 #| vscode: {languageId: python}
@@ -629,7 +639,7 @@ for chain in x.chains:
 
 Looks reasonable so far.  We have 2 identical paths, each with 4 derivatives (one for each edge in the path) as expected.
 
-let's multiply the derivatives together along each path and add the total for each path together and see if we get the right answer.  
+Let's multiply the derivatives together along each path and add the total for each path together and see if we get the right answer.  
 
 According my calculations (and [Wolfram Alpha](https://www.wolframalpha.com/)) the derivative of $L$ wrt $x$ is:
 $$\frac{\partial L}{\partial x} = 2m (c + mx - y)$$
@@ -666,8 +676,6 @@ def backward(root_node: Tensor) -> None:
         # because it wasn't created by an operation) then
         # record the path taken to get here
         if not node.args:
-            if not hasattr(node, "chain"):
-                node.chain = []
             node.chain.append(current_derivative)
             continue
 
@@ -699,7 +707,7 @@ def backward(root_node: Tensor) -> None:
             stack.append((arg, _mul(current_derivative, derivative)))
 ```
 
-let's make sure we didn't break anything
+Let's make sure we didn't break anything
 
 ```{python}
 #| vscode: {languageId: python}
@@ -764,7 +772,7 @@ class Tensor:
                 stack.append((arg, new_derivative))
 ```
 
-let's try it out
+Let's try it out
 
 ```{python}
 # | vscode: {languageId: python}
@@ -955,7 +963,7 @@ class Tensor:
                 stack.append((arg, current_derivative * derivative))
 ```
 
-let's take it for a spin.  We'll try calculating $L$ again
+Let's take it for a spin.  We'll try calculating $L$ again
 
 ```{python}
 #| vscode: {languageId: python}
@@ -981,7 +989,7 @@ $$\frac{d f(x)}{dx} = -38 + 102 x - 33 x^2 + 8 x^3 + 30 x^4$$
 
 If we plug 2 into this equation, the answer is apparently 578 (again, thanks to [Wolfram Alpha](https://www.wolframalpha.com/)).
 
-let's try it with our algorithm
+Let's try it with our algorithm
 
 ```{python}
 #| vscode: {languageId: python}
