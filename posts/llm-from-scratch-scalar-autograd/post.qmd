@@ -1014,4 +1014,3 @@ From nothing, we have now written an algorithm that will let us differentiate an
 Differentiating scalars is (I hope you agree) interesting, but it isn't exactly GPT-4.  That said, with a few small modifications to our algorithm, we can extend our algorithm to handle multi-dimensional tensors like matrices and vectors.  Once you can do that, you can build up to backpropagation and, eventually, to a fully functional language model.
 
 Next time, we'll extend our algorithm to vectors and matrices and build up from there to a working neural network.  If you want to peek ahead, you can check out the repo for [Tricycle](https://github.com/bclarkson-code/Tricycle) which is the name for the deep learning framework we're building.
-

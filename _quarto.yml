@@ -8,15 +8,21 @@ website:
     right:
       - about.qmd
       - icon: github
-        href: https://github.com/
-      - icon: twitter
-        href: https://twitter.com
+        href: https://github.com/bclarkson-code
+      - icon: linkedin 
+        href: https://www.linkedin.com/in/benedict-clarkson-779b43154/
   google-analytics: "G-KG3BJCW6QN"
+  comments:
+    utterances:
+      repo: bclarkson-code/bclarkson-code.github.io
+      label: comment
+      theme: github-dark
 
 format:
   html:
     theme: cyborg
     css: styles.css
+    highlight-style: atom-one 
 
 execute:
   freeze: auto
