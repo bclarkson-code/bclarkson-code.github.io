@@ -12,7 +12,7 @@ about:
       href: https://github.com/bclarkson-code
     - icon: envelope 
       text: Email
-      href: 'mailto:bclarkson-code@proton.me'
+      href: mailto:bclarkson-code@proton.me
 ---
 
 I'm usually working on a side project and this blog is where I'll be sharing them with the world.
