@@ -22,7 +22,7 @@ format:
   html:
     theme: cyborg
     css: styles.css
-    highlight-style: atom-one 
+    highlight-style: atom-one
 
 execute:
   freeze: auto

@@ -10,10 +10,13 @@ about:
     - icon: github
       text: Github
       href: https://github.com/bclarkson-code
+    - icon: email
+      text: Email
+      href: bclarkson-code@proton.me
 ---
 
 I'm usually working on a side project and this blog is where I'll be sharing them with the world.
 
-Interested in working together? Check out [my CV](/www/benedict_clarkson_cv_2024_02_14.pdf)
+Interested in working together? Check out [my CV](/www/benedict_clarkson_cv_2024_02_15.pdf)
 
 
