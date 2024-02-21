@@ -29,7 +29,7 @@ This one algorithm will form the core of our deep learning library that, eventua
 We can't do any differentiation if we don't have any numbers to differentiate.  We'll want to add some extra functionality that is in standard `float` types so we'll need to create our own.  Let's call it a `Tensor`.
 
 ```{python}
-#| vscode: {languageId: python}
+# | vscode: {languageId: python}
 class Tensor:
     """
     Just a number (for now)
@@ -232,7 +232,7 @@ class Tensor:
     # Later, we'll want to record the path we followed to get
     # to this tensor and some operations we did along the way
     # don't worry about these for now
-    paths: List[Tensor] = None
+    paths: List["Tensor"] = None
     chains: List[Tensor] = None
 
     def __init__(self, value: float):
@@ -378,8 +378,7 @@ $$\frac{\partial z}{\partial x} = \frac{\partial f(u)}{\partial u} \frac{\partia
 
 And this generalises to any amount of nesting
 
-$$z = f_1(f_2(....f_{n-1}(f_n(x))...)) $$
-$\implies \frac{\partial z}{\partial x} = \frac{\partial f_1(u)}{\partial u}\frac{\partial f_2(u)}{\partial u}...\frac{\partial f_{n-1}(u)}{\partial u}\frac{\partial f_{n}(x)}{\partial x}$$
+$$z = f_1(f_2(....f_{n-1}(f_n(x))...)) \implies \frac{\partial z}{\partial x} = \frac{\partial f_1(u)}{\partial u}\frac{\partial f_2(u)}{\partial u}...\frac{\partial f_{n-1}(u)}{\partial u}\frac{\partial f_{n}(x)}{\partial x}$$
 
 ### A picture is worth a thousand equations
 As you probably noticed, the maths is starting to get quite dense.  When we start working with neural networks, we can easily get 100s or 1000s of functions deep so to get a handle on things, we'll need a different strategy.  Helpfully, there is one: turning it into a graph.

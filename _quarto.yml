@@ -17,6 +17,7 @@ website:
       repo: bclarkson-code/bclarkson-code.github.io
       label: comment
       theme: github-dark
+  favicon: www/logo.png
 
 format:
   html:
