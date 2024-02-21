@@ -233,7 +233,7 @@ class Tensor:
     # to this tensor and some operations we did along the way
     # don't worry about these for now
     paths: List["Tensor"] = None
-    chains: List[Tensor] = None
+    chains: List["Tensor"] = None
 
     def __init__(self, value: float):
         self.value = value
@@ -734,8 +734,8 @@ class Tensor:
     A float that can be differentiated
     """
 
-    args: tuple[Tensor] = ()
-    local_derivatives: tuple[Tensor] = ()
+    args: tuple["Tensor"] = ()
+    local_derivatives: tuple["Tensor"] = ()
     # The derivative (once we've calculated it).  This is None if the derivative
     # has not been computed yet
     derivative: Tensor | None = None
@@ -893,8 +893,8 @@ class Tensor:
     A float that can be differentiated
     """
 
-    args: tuple[Tensor] = ()
-    local_derivatives: tuple[Tensor] = ()
+    args: tuple["Tensor"] = ()
+    local_derivatives: tuple["Tensor"] = ()
     # The derivative (once we've calculated it).  This is None if the derivative
     # has not been computed yet
     derivative: Tensor | None = None
