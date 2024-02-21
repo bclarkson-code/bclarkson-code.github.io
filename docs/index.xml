@@ -1,0 +1,2930 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss  xmlns:atom="http://www.w3.org/2005/Atom" 
+      xmlns:media="http://search.yahoo.com/mrss/" 
+      xmlns:content="http://purl.org/rss/1.0/modules/content/" 
+      xmlns:dc="http://purl.org/dc/elements/1.1/" 
+      version="2.0">
+<channel>
+<title>Gradient Descent into Madness</title>
+<link>https://bclarkson-code.github.io/</link>
+<atom:link href="https://bclarkson-code.github.io/index.xml" rel="self" type="application/rss+xml"/>
+<description>Building an LLM completely from scratch</description>
+<generator>quarto-1.4.549</generator>
+<lastBuildDate>Fri, 10 Feb 2023 00:00:00 GMT</lastBuildDate>
+<item>
+  <title>Building an LLM from scratch</title>
+  <dc:creator>Ben Clarkson</dc:creator>
+  <link>https://bclarkson-code.github.io/posts/llm-from-scratch-scalar-autograd/post.html</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<div id="9a1721df" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="1">
+<details class="code-fold">
+<summary>Setup</summary>
+<div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">from</span> typing <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> Any, Optional, List</span>
+<span id="cb1-2"></span>
+<span id="cb1-3"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> networkx <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> nx</span></code></pre></div>
+</details>
+</div>
+<section id="llm-from-scratch-automatic-differentiation" class="level2">
+<h2 class="anchored" data-anchor-id="llm-from-scratch-automatic-differentiation">LLM from scratch: Automatic Differentiation</h2>
+<p>I’m building a modern language model with all the bells and whistles completely from scratch: from vanilla python to functional coding assistant. Borrowing (shamelessly stealing) from computer games, I’ve built a tech tree of everything that I think I’ll need to implement to get a fully functional language model. If you think anything is missing, <a href="mailto:bclarkson-code@proton.me">please let me know</a>:</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://bclarkson-code.github.io/posts/llm-from-scratch-scalar-autograd/images/tech_tree_post_1.png" class="img-fluid figure-img" alt="The LLM from scratch tech tree" width="700"></p>
+<figcaption>The LLM from scratch tech tree</figcaption>
+</figure>
+</div>
+<p>Before we can move onto building modern features like <a href="https://arxiv.org/abs/2104.09864">Rotary Positional Encodings</a>, we first need to figure out how to differentiate with a computer. The backpropagation algorithm that underpins the entire field of Deep Learning requires the ability to differentiate the outputs of neural networks with respect to (wrt) their inputs. In this post, we’ll go from nothing to an (admittedly very limited) automatic differentiation library that can differentiate arbitrary functions of scalar values.</p>
+<p>This one algorithm will form the core of our deep learning library that, eventually, will include everything we need to train a language model.</p>
+</section>
+<section id="creating-a-tensor" class="level2">
+<h2 class="anchored" data-anchor-id="creating-a-tensor">Creating a tensor</h2>
+<p>We can’t do any differentiation if we don’t have any numbers to differentiate. We’ll want to add some extra functionality that is in standard <code>float</code> types so we’ll need to create our own. Let’s call it a <code>Tensor</code>.</p>
+<div id="e4b1d4fc" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">class</span> Tensor:</span>
+<span id="cb2-2">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb2-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Just a number (for now)</span></span>
+<span id="cb2-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    """</span></span>
+<span id="cb2-5"></span>
+<span id="cb2-6">    value: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span></span>
+<span id="cb2-7"></span>
+<span id="cb2-8">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, value: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>):</span>
+<span id="cb2-9">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> value</span>
+<span id="cb2-10"></span>
+<span id="cb2-11">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__repr__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">str</span>:</span>
+<span id="cb2-12">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb2-13"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        Create a printable string representation of this</span></span>
+<span id="cb2-14"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        object</span></span>
+<span id="cb2-15"></span>
+<span id="cb2-16"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        This function gets called when you pass a Tensor to print</span></span>
+<span id="cb2-17"></span>
+<span id="cb2-18"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        Without this function:</span></span>
+<span id="cb2-19"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        &gt;&gt;&gt; print(Tensor(5))</span></span>
+<span id="cb2-20"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        &lt;__main__.Tensor at 0x104fd1950&gt;</span></span>
+<span id="cb2-21"></span>
+<span id="cb2-22"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        With this function:</span></span>
+<span id="cb2-23"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        &gt;&gt;&gt; print(Tensor(5))</span></span>
+<span id="cb2-24"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        Tensor(5)</span></span>
+<span id="cb2-25"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        """</span></span>
+<span id="cb2-26">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> <span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Tensor(</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>value<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">)"</span></span>
+<span id="cb2-27"></span>
+<span id="cb2-28"></span>
+<span id="cb2-29"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># try it out</span></span>
+<span id="cb2-30">Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>)</span></code></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="33">
+<pre><code>Tensor(5)</code></pre>
+</div>
+</div>
+<p>Next we’ll need some simple operations we want to perform: addition, subtraction and multiplication.</p>
+<div id="bef44ec9" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> _add(a: Tensor, b: Tensor):</span>
+<span id="cb4-2">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb4-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Add two tensors</span></span>
+<span id="cb4-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    """</span></span>
+<span id="cb4-5">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> Tensor(a.value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> b.value)</span>
+<span id="cb4-6"></span>
+<span id="cb4-7"></span>
+<span id="cb4-8"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> _sub(a: Tensor, b: Tensor):</span>
+<span id="cb4-9">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb4-10"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Subtract tensor b from tensor a</span></span>
+<span id="cb4-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    """</span></span>
+<span id="cb4-12">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> Tensor(a.value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> b.value)</span>
+<span id="cb4-13"></span>
+<span id="cb4-14"></span>
+<span id="cb4-15"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> _mul(a: Tensor, b: Tensor):</span>
+<span id="cb4-16">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb4-17"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Multiply two tensors</span></span>
+<span id="cb4-18"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    """</span></span>
+<span id="cb4-19">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> Tensor(a.value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> b.value)</span></code></pre></div>
+</div>
+<p>We can use use our operations as follows:</p>
+<div id="f0e75830" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> test(got: Any, want: Any):</span>
+<span id="cb5-2">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb5-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Check that two objects are equal to each other</span></span>
+<span id="cb5-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    """</span></span>
+<span id="cb5-5">    indicator <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"✅"</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> want <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> got <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">else</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"❌"</span></span>
+<span id="cb5-6">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>indicator<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> - Want: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>want<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">, Got: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>got<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb5-7"></span>
+<span id="cb5-8"></span>
+<span id="cb5-9">a <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span>
+<span id="cb5-10">b <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>)</span>
+<span id="cb5-11"></span>
+<span id="cb5-12"></span>
+<span id="cb5-13">test(_add(a, b).value, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span>)</span>
+<span id="cb5-14">test(_sub(a, b).value, <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb5-15">test(_mul(a, b).value, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>✅ - Want: 7, Got: 7
+✅ - Want: -1, Got: -1
+✅ - Want: 12, Got: 12</code></pre>
+</div>
+</div>
+</section>
+<section id="scalar-derivatives" class="level2">
+<h2 class="anchored" data-anchor-id="scalar-derivatives">Scalar derivatives</h2>
+<p>Diving straight into differentiating matrices sounds too hard so let’s start with something simpler: differentiating scalars. The simplest scalar derivative I can think of is differentiating a tensor with respect to itself: <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7Bdx%7D%7Bdx%7D%20=%201"></p>
+<p>A more interesting case is the derivative of two tensors added together (note we are using partial derivatives because our function has multiple inputs): <img src="https://latex.codecogs.com/png.latex?f(x,%20y)%20=%20x%20+%20y"> <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20f%7D%7B%5Cpartial%20x%7D%20=%201"> <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20f%7D%7B%5Cpartial%20y%7D%20=%201"></p>
+<p>We can do a similar thing for multiplication and subtraction</p>
+<table class="table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th><img src="https://latex.codecogs.com/png.latex?f(x,%20y)"></th>
+<th><img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20f%7D%7B%5Cpartial%20x%7D"></th>
+<th><img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20f%7D%7B%5Cpartial%20y%7D"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><img src="https://latex.codecogs.com/png.latex?x%20+%20y"></td>
+<td><img src="https://latex.codecogs.com/png.latex?1"></td>
+<td><img src="https://latex.codecogs.com/png.latex?1"></td>
+</tr>
+<tr class="even">
+<td><img src="https://latex.codecogs.com/png.latex?x%20-%20y"></td>
+<td><img src="https://latex.codecogs.com/png.latex?1"></td>
+<td><img src="https://latex.codecogs.com/png.latex?-1"></td>
+</tr>
+<tr class="odd">
+<td><img src="https://latex.codecogs.com/png.latex?x%20%5Ctimes%20y"></td>
+<td><img src="https://latex.codecogs.com/png.latex?y"></td>
+<td><img src="https://latex.codecogs.com/png.latex?x"></td>
+</tr>
+</tbody>
+</table>
+<p>Now that we’ve worked out these derivatives mathematically, the next step is to convert them into code. In the table above, when we make a tensor by combining two tensors with an operation, the derivative only ever depends on the inputs and the operation. There is no “hidden state”.</p>
+<p>This means that the only information we need to store is the inputs to an operation and a function to calculate the derivative wrt each input. With this, we should be able to differentiate any binary function wrt its inputs. A good place to store this information is in the tensor that is produced by the operation.</p>
+<p>We’ll add some new attributes to our <code>Tensor</code>: <code>args</code> and <code>local_derivatives</code>. If the tensor is the output of an operation, then <code>args</code> will store the arguments to the operation and <code>local_derivatives</code> will store the derivatives wrt each input. We’re calling it <code>local_derivatives</code> to avoid confusion when we start nesting functions.</p>
+<p>Once we’ve calculated the derivative (from our <code>args</code> and <code>local_derivatives</code>) we’ll need to store it. It turns out that the neatest place to put this is in the tensor that the output is being differentiated wrt. We’ll call this <code>derivative</code>.</p>
+<div id="86f32d20" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">class</span> Tensor:</span>
+<span id="cb7-2">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb7-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    A number that can be differentiated</span></span>
+<span id="cb7-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    """</span></span>
+<span id="cb7-5"></span>
+<span id="cb7-6">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># If the tensor was made by an operation, the operation arguments</span></span>
+<span id="cb7-7">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># are stored in args</span></span>
+<span id="cb7-8">    args: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">tuple</span>[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Tensor"</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ()</span>
+<span id="cb7-9">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># If the tensor was made by an operation, the derivatives wrt</span></span>
+<span id="cb7-10">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># operation inputs are stored in derivatives</span></span>
+<span id="cb7-11">    local_derivatives: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">tuple</span>[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Tensor"</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ()</span>
+<span id="cb7-12">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># The derivative we have calculated</span></span>
+<span id="cb7-13">    derivative: Optional[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Tensor"</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span></span>
+<span id="cb7-14"></span>
+<span id="cb7-15">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, value: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>):</span>
+<span id="cb7-16">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> value</span>
+<span id="cb7-17"></span>
+<span id="cb7-18">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__repr__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">str</span>:</span>
+<span id="cb7-19">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb7-20"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        Create a printable string representation of this</span></span>
+<span id="cb7-21"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        object</span></span>
+<span id="cb7-22"></span>
+<span id="cb7-23"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        This function gets called when you pass a Tensor to print</span></span>
+<span id="cb7-24"></span>
+<span id="cb7-25"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        Without this function:</span></span>
+<span id="cb7-26"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        &gt;&gt;&gt; print(Tensor(5))</span></span>
+<span id="cb7-27"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        &lt;__main__.Tensor at 0x104fd1950&gt;</span></span>
+<span id="cb7-28"></span>
+<span id="cb7-29"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        With this function:</span></span>
+<span id="cb7-30"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        &gt;&gt;&gt; print(Tensor(5))</span></span>
+<span id="cb7-31"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        Tensor(5)</span></span>
+<span id="cb7-32"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        """</span></span>
+<span id="cb7-33">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> <span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Tensor(</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>value<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">)"</span></span></code></pre></div>
+</div>
+<p>For example, if we have</p>
+<div id="57e058bc" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1">a <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span>
+<span id="cb8-2">b <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>)</span>
+<span id="cb8-3"></span>
+<span id="cb8-4">output <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _mul(a, b)</span></code></pre></div>
+</div>
+<p>Then <code>output.args</code> and <code>output.local_derivatives</code> should be set to:</p>
+<div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1">output.args <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> (Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>), Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>))</span>
+<span id="cb9-2">output.derivatives <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> (</span>
+<span id="cb9-3">    b,  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># derivative of output wrt a is b</span></span>
+<span id="cb9-4">    a,  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># derivative of output wrt b is a</span></span>
+<span id="cb9-5">)</span></code></pre></div>
+<p>Once we have actually computed the derivatives, then the derivative of <code>output</code> wrt <code>a</code> will be stored in <code>a.derivative</code> and should be equal to <code>b</code> (which is 4 in this case).</p>
+<p>We know that we’ve done everything right once these tests pass:</p>
+<div id="dbef1d3a" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1">a <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span>
+<span id="cb10-2">b <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>)</span>
+<span id="cb10-3"></span>
+<span id="cb10-4">output <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _mul(a, b)</span>
+<span id="cb10-5"></span>
+<span id="cb10-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># </span><span class="al" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">TODO</span><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">: differentiate here</span></span>
+<span id="cb10-7"></span>
+<span id="cb10-8">test(got<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>output.args, want<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(a, b))</span>
+<span id="cb10-9">test(got<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>output.local_derivatives, want<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(b, a))</span>
+<span id="cb10-10">test(got<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>a.derivative, want<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>b)</span>
+<span id="cb10-11">test(got<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>b.derivative, want<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>a)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>❌ - Want: (Tensor(3), Tensor(4)), Got: ()
+❌ - Want: (Tensor(4), Tensor(3)), Got: ()
+❌ - Want: Tensor(4), Got: None
+❌ - Want: Tensor(3), Got: None</code></pre>
+</div>
+</div>
+<p>First, let’s add a function to our <code>Tensor</code> that will actually calculate the derivatives for each of the function arguments. Pytorch calls this function <code>backward</code> so we’ll do the same.</p>
+<div id="6b0b3018" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">class</span> Tensor:</span>
+<span id="cb12-2">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb12-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    A number that can be differentiated</span></span>
+<span id="cb12-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    """</span></span>
+<span id="cb12-5"></span>
+<span id="cb12-6">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># If the tensor was made by an operation, the operation arguments</span></span>
+<span id="cb12-7">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># are stored in args</span></span>
+<span id="cb12-8">    args: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">tuple</span>[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Tensor"</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ()</span>
+<span id="cb12-9">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># If the tensor was made by an operation, the derivatives wrt</span></span>
+<span id="cb12-10">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># operation inputs are stored in</span></span>
+<span id="cb12-11">    local_derivatives: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">tuple</span>[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Tensor"</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ()</span>
+<span id="cb12-12">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># The derivative we have calculated</span></span>
+<span id="cb12-13">    derivative: Optional[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Tensor"</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span></span>
+<span id="cb12-14"></span>
+<span id="cb12-15">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># optionally give this tensor a name</span></span>
+<span id="cb12-16">    name: Optional[<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">str</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span></span>
+<span id="cb12-17">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Later, we'll want to record the path we followed to get</span></span>
+<span id="cb12-18">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># to this tensor and some operations we did along the way</span></span>
+<span id="cb12-19">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># don't worry about these for now</span></span>
+<span id="cb12-20">    paths: List[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Tensor"</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span></span>
+<span id="cb12-21">    chains: List[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Tensor"</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span></span>
+<span id="cb12-22"></span>
+<span id="cb12-23">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, value: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>):</span>
+<span id="cb12-24">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> value</span>
+<span id="cb12-25"></span>
+<span id="cb12-26">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> backward(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>):</span>
+<span id="cb12-27">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.args <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">is</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">or</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.local_derivatives <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">is</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>:</span>
+<span id="cb12-28">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">raise</span> <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">ValueError</span>(</span>
+<span id="cb12-29">                <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Cannot differentiate a Tensor that is not a function of other Tensors"</span></span>
+<span id="cb12-30">            )</span>
+<span id="cb12-31"></span>
+<span id="cb12-32">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">for</span> arg, derivative <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">zip</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.args, <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.local_derivatives):</span>
+<span id="cb12-33">            arg.derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> derivative</span>
+<span id="cb12-34"></span>
+<span id="cb12-35">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__repr__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">str</span>:</span>
+<span id="cb12-36">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb12-37"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        Create a printable string representation of this</span></span>
+<span id="cb12-38"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        object</span></span>
+<span id="cb12-39"></span>
+<span id="cb12-40"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        This function gets called when you pass a Tensor to print</span></span>
+<span id="cb12-41"></span>
+<span id="cb12-42"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        Without this function:</span></span>
+<span id="cb12-43"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        &gt;&gt;&gt; print(Tensor(5))</span></span>
+<span id="cb12-44"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        &lt;__main__.Tensor at 0x104fd1950&gt;</span></span>
+<span id="cb12-45"></span>
+<span id="cb12-46"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        With this function:</span></span>
+<span id="cb12-47"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        &gt;&gt;&gt; print(Tensor(5))</span></span>
+<span id="cb12-48"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        Tensor(5)</span></span>
+<span id="cb12-49"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        """</span></span>
+<span id="cb12-50">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> <span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Tensor(</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>value<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">)"</span></span></code></pre></div>
+</div>
+<p>This only works if we also store the arguments and derivatives in the output tensors of operations</p>
+<div id="e76370ae" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> _add(a: Tensor, b: Tensor):</span>
+<span id="cb13-2">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb13-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Add two tensors</span></span>
+<span id="cb13-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    """</span></span>
+<span id="cb13-5">    result <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(a.value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> b.value)</span>
+<span id="cb13-6">    result.local_derivatives <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>), Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>))</span>
+<span id="cb13-7">    result.args <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (a, b)</span>
+<span id="cb13-8">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> result</span>
+<span id="cb13-9"></span>
+<span id="cb13-10"></span>
+<span id="cb13-11"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> _sub(a: Tensor, b: Tensor):</span>
+<span id="cb13-12">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb13-13"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Subtract tensor b from a</span></span>
+<span id="cb13-14"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    """</span></span>
+<span id="cb13-15">    result <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(a.value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> b.value)</span>
+<span id="cb13-16">    result.local_derivatives <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>), Tensor(<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>))</span>
+<span id="cb13-17">    result.args <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (a, b)</span>
+<span id="cb13-18">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> result</span>
+<span id="cb13-19"></span>
+<span id="cb13-20"></span>
+<span id="cb13-21"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> _mul(a: Tensor, b: Tensor):</span>
+<span id="cb13-22">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb13-23"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Multiply two tensors</span></span>
+<span id="cb13-24"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    """</span></span>
+<span id="cb13-25">    result <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(a.value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> b.value)</span>
+<span id="cb13-26">    result.local_derivatives <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (b, a)</span>
+<span id="cb13-27">    result.args <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (a, b)</span>
+<span id="cb13-28">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> result</span></code></pre></div>
+</div>
+<p>Let’s re-run our tests and see if it works</p>
+<div id="51973d60" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1">a <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span>
+<span id="cb14-2">b <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>)</span>
+<span id="cb14-3"></span>
+<span id="cb14-4">output <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _mul(a, b)</span>
+<span id="cb14-5"></span>
+<span id="cb14-6">output.backward()</span>
+<span id="cb14-7"></span>
+<span id="cb14-8">test(got<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>output.args, want<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(a, b))</span>
+<span id="cb14-9">test(got<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>output.local_derivatives, want<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(b, a))</span>
+<span id="cb14-10">test(a.derivative, b)</span>
+<span id="cb14-11">test(b.derivative, a)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>✅ - Want: (Tensor(3), Tensor(4)), Got: (Tensor(3), Tensor(4))
+✅ - Want: (Tensor(4), Tensor(3)), Got: (Tensor(4), Tensor(3))
+✅ - Want: Tensor(4), Got: Tensor(4)
+✅ - Want: Tensor(3), Got: Tensor(3)</code></pre>
+</div>
+</div>
+<p>So far so good, let’s try nesting operations.</p>
+<div id="741ff7ed" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="11">
+<div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1">a <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span>
+<span id="cb16-2">b <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>)</span>
+<span id="cb16-3"></span>
+<span id="cb16-4">output_1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _mul(a, b)</span>
+<span id="cb16-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># z = a + (a * b)</span></span>
+<span id="cb16-6">output_2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _add(a, output_1)</span>
+<span id="cb16-7"></span>
+<span id="cb16-8">output_2.backward()</span>
+<span id="cb16-9"></span>
+<span id="cb16-10"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># should get</span></span>
+<span id="cb16-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># dz/db = 0 + a = a</span></span>
+<span id="cb16-12">test(b.derivative, a)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>❌ - Want: Tensor(3), Got: None</code></pre>
+</div>
+</div>
+<p>Something has gone wrong.</p>
+<p>We should have got <code>a</code> as the derivative for <code>b</code> but we got <code>0</code> instead. Looking through the <code>.backward()</code> function, the issue is pretty clear: we haven’t thought about nested functions. To get this example working, we’ll need to figure out how to calculate derivatives through multiple functions instead of just one.</p>
+</section>
+<section id="chaining-functions-together" class="level2">
+<h2 class="anchored" data-anchor-id="chaining-functions-together">Chaining Functions Together</h2>
+<p>To calculate derivatives of nested functions, we can use a rule from calculus: The Chain Rule.</p>
+<p>For a variable <img src="https://latex.codecogs.com/png.latex?z"> generated by nested functions <img src="https://latex.codecogs.com/png.latex?f"> and <img src="https://latex.codecogs.com/png.latex?g"> such that <img src="https://latex.codecogs.com/png.latex?z%20=%20f(g(x))"></p>
+<p>Then the derivative of <img src="https://latex.codecogs.com/png.latex?z"> wrt <img src="https://latex.codecogs.com/png.latex?x"> is: <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20z%7D%7B%5Cpartial%20x%7D%20=%20%5Cfrac%7B%5Cpartial%20f(u)%7D%7B%5Cpartial%20u%7D%20%5Cfrac%7B%5Cpartial%20g(x)%7D%7B%5Cpartial%20x%7D"></p>
+<p>Here, <img src="https://latex.codecogs.com/png.latex?u"> is a dummy variable. <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20f(u)%7D%7B%5Cpartial%20u%7D"> means the derivative of <img src="https://latex.codecogs.com/png.latex?f"> wrt its input.</p>
+<p>For example, if</p>
+<p><img src="https://latex.codecogs.com/png.latex?f(x)%20=%20g(x)%5E2"> Then we can define <img src="https://latex.codecogs.com/png.latex?u=g(x)"> and rewrite <img src="https://latex.codecogs.com/png.latex?f"> in terms of u <img src="https://latex.codecogs.com/png.latex?f(u)%20=%20u%5E2%20%5Cimplies%20%5Cfrac%7B%5Cpartial%20f(u)%7D%7B%5Cpartial%20u%7D%20=%202u%20=%202%20g(x)"></p>
+<section id="multiple-variables" class="level3">
+<h3 class="anchored" data-anchor-id="multiple-variables">Multiple Variables</h3>
+<p>The chain rule works as you might expect for functions of multiple variables. When differentiating wrt a variable, we can treat the other variables as constant and differentiate as normal <img src="https://latex.codecogs.com/png.latex?z%20=%20f(g(x),%20h(y))"></p>
+<p><img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20z%7D%7B%5Cpartial%20x%7D%20=%20%5Cfrac%7B%5Cpartial%20f(u)%7D%7B%5Cpartial%20u%7D%20%5Cfrac%7B%5Cpartial%20g(x)%7D%7B%5Cpartial%20x%7D"> <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20z%7D%7B%5Cpartial%20y%7D%20=%20%5Cfrac%7B%5Cpartial%20f(u)%7D%7B%5Cpartial%20u%7D%20%5Cfrac%7B%5Cpartial%20h(y)%7D%7B%5Cpartial%20y%7D"></p>
+<p>If we have different functions that take the same input, we differentiate each of them individually and then add them together</p>
+<p><img src="https://latex.codecogs.com/png.latex?z%20=%20f(g(x),%20h(x))"></p>
+<p>We get <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20z%7D%7B%5Cpartial%20x%7D%20=%20%5Cfrac%7B%5Cpartial%20f(u)%7D%7B%5Cpartial%20u%7D%5Cfrac%7B%5Cpartial%20g(x)%7D%7B%5Cpartial%20x%7D%20+%20%5Cfrac%7B%5Cpartial%20f(u)%7D%7B%5Cpartial%20u%7D%5Cfrac%7B%5Cpartial%20h(x)%7D%7B%5Cpartial%20x%7D"></p>
+</section>
+<section id="more-than-2-functions" class="level3">
+<h3 class="anchored" data-anchor-id="more-than-2-functions">More than 2 functions</h3>
+<p>If we chain 3 functions together, we still just multiply the derivatives for each function together:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20z%7D%7B%5Cpartial%20x%7D%20=%20%5Cfrac%7B%5Cpartial%20f(u)%7D%7B%5Cpartial%20u%7D%20%5Cfrac%7B%5Cpartial%20g(x)%7D%7B%5Cpartial%20x%7D%20=%20%5Cfrac%7B%5Cpartial%20f(u)%7D%7B%5Cpartial%20u%7D%20%5Cfrac%7B%5Cpartial%20g(u)%7D%7B%5Cpartial%20u%7D%5Cfrac%7B%5Cpartial%20h(x)%7D%7B%5Cpartial%20x%7D"></p>
+<p>And this generalises to any amount of nesting</p>
+<p><img src="https://latex.codecogs.com/png.latex?z%20=%20f_1(f_2(....f_%7Bn-1%7D(f_n(x))...))%20%5Cimplies%20%5Cfrac%7B%5Cpartial%20z%7D%7B%5Cpartial%20x%7D%20=%20%5Cfrac%7B%5Cpartial%20f_1(u)%7D%7B%5Cpartial%20u%7D%5Cfrac%7B%5Cpartial%20f_2(u)%7D%7B%5Cpartial%20u%7D...%5Cfrac%7B%5Cpartial%20f_%7Bn-1%7D(u)%7D%7B%5Cpartial%20u%7D%5Cfrac%7B%5Cpartial%20f_%7Bn%7D(x)%7D%7B%5Cpartial%20x%7D"></p>
+</section>
+<section id="a-picture-is-worth-a-thousand-equations" class="level3">
+<h3 class="anchored" data-anchor-id="a-picture-is-worth-a-thousand-equations">A picture is worth a thousand equations</h3>
+<p>As you probably noticed, the maths is starting to get quite dense. When we start working with neural networks, we can easily get 100s or 1000s of functions deep so to get a handle on things, we’ll need a different strategy. Helpfully, there is one: turning it into a graph.</p>
+<p>We can start with some rules:</p>
+<blockquote class="blockquote">
+<p>Variables are represented with circles and operations are represented with boxes</p>
+</blockquote>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://bclarkson-code.github.io/posts/llm-from-scratch-scalar-autograd/images/variable_and_box.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:50.0%" alt="A variable as a circle and an operation as a box"></p>
+</figure>
+</div>
+<blockquote class="blockquote">
+<p>Inputs to an operation are represented with arrows that point to the operation box. Outputs point away.</p>
+</blockquote>
+<p>For example, here is the diagram for <img src="https://latex.codecogs.com/png.latex?z%20=%20mx"></p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://bclarkson-code.github.io/posts/llm-from-scratch-scalar-autograd/images/z_eq_mx.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:50.0%" alt="The operation z = mx"></p>
+</figure>
+</div>
+<p>And that’s it! All of the equations we’ll be working with can be represented graphically using these simple rules. To try it out, let’s draw the diagram for a more complex formula:</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://bclarkson-code.github.io/posts/llm-from-scratch-scalar-autograd/images/square_error.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:60.0%" alt="A diagram of the square error of a linear regression"></p>
+</figure>
+</div>
+<p>This is an example of a structure called a graph (also called a network). A lot of problem in computer science get much easier if you can represent them with a graph and this is no exception.</p>
+<p>The real power of these diagrams is that they can also help us with our derivatives. Take <img src="https://latex.codecogs.com/png.latex?y%20=%20mx%20+%20p%20=%20%5Ctexttt%7Badd%7D(p,%20%5Ctexttt%7Bmul%7D(m%20,x))."></p>
+<p>From before, we can find its derivatives by differentiating each operation wrt its inputs and multiplying the results together. In this case, we get: <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20y%7D%7B%5Cpartial%20p%7D%20=%20%5Cfrac%7B%5Cpartial%20%5Ctexttt%7Badd%7D(u_1,%20u_2)%7D%7B%5Cpartial%20u_1%7D%20=%201"> <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20y%7D%7B%5Cpartial%20m%7D%20=%20%5Cfrac%7B%5Cpartial%20%5Ctexttt%7Badd%7D(u_1,%20u_2)%7D%7B%5Cpartial%20u_2%7D%5Cfrac%7B%5Cpartial%20%5Ctexttt%7Bmul%7D(u_1,%20u_2)%7D%7B%5Cpartial%20u_2%7D%20=%201%20%5Ctimes%20x%20=%20x"> <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20y%7D%7B%5Cpartial%20x%7D%20=%20%5Cfrac%7B%5Cpartial%20%5Ctexttt%7Badd%7D(u_1,%20u_2)%7D%7B%5Cpartial%20u_2%7D%5Cfrac%7B%5Cpartial%20%5Ctexttt%7Bmul%7D(u_1,%20u_2)%7D%7B%5Cpartial%20u_1%7D%20=%201%20%5Ctimes%20m%20=%20m"></p>
+<p>We can also graph it like this:</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://bclarkson-code.github.io/posts/llm-from-scratch-scalar-autograd/images/y_eq_mx_plus_p_labelled.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:50.0%" alt="a graph of y = mx + p"></p>
+</figure>
+</div>
+<p>If you imagine walking from <img src="https://latex.codecogs.com/png.latex?y"> to each of the inputs, you might notice a similarity between the edges you pass through and the equations above. If you walk from <img src="https://latex.codecogs.com/png.latex?y"> to <img src="https://latex.codecogs.com/png.latex?x">, you’ll pass through <code>a-&gt;c-&gt;d</code>. Similarly, if you walk from <img src="https://latex.codecogs.com/png.latex?y"> to <img src="https://latex.codecogs.com/png.latex?m">, you’ll pass through <code>a-&gt;d-&gt;e</code>. Notice that both paths go through <code>c</code>, the edge coming out of <code>add</code> that corresponds to the input <img src="https://latex.codecogs.com/png.latex?u_2">. Also, both equations include the term <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20%5Ctexttt%7Badd%7D(u_1,%20u_2)%7D%7B%5Cpartial%20u_2%7D">.</p>
+<p>If I rename the edges as follows:</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://bclarkson-code.github.io/posts/llm-from-scratch-scalar-autograd/images/y_eq_mx_plus_p_deriv.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:50.0%" alt="y = mx + p with each edge given a letter"></p>
+</figure>
+</div>
+<p>We can see that going from <img src="https://latex.codecogs.com/png.latex?y"> to <img src="https://latex.codecogs.com/png.latex?x">, we pass through <img src="https://latex.codecogs.com/png.latex?1">, <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20%5Ctexttt%7Badd%7D(u_1,%20u_2)%7D%7B%5Cpartial%20u_2%7D"> and <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20%5Ctexttt%7Bmul%7D(u_1,%20u_2)%7D%7B%5Cpartial%20u_1%7D">. If we multiply these together, we get exactly <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20%5Ctexttt%7Badd%7D(u_1,%20u_2)%7D%7B%5Cpartial%20u_2%7D%5Cfrac%7B%5Cpartial%20%5Ctexttt%7Bmul%7D(u_1,%20u_2)%7D%7B%5Cpartial%20u_1%7D%20=%20%5Cfrac%7B%5Cpartial%20y%7D%7B%5Cpartial%20x%7D">!</p>
+<p>It turns out that this rule works in general:</p>
+<blockquote class="blockquote">
+<p>If we have some operation <img src="https://latex.codecogs.com/png.latex?%5Ctexttt%7Bop%7D(u_1,%20u_2,%20...,%20u_n)">, we should label the edge corresponding to input <img src="https://latex.codecogs.com/png.latex?u_i"> with <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20%5Ctexttt%7Bop%7D(u_1,%20u_2,%20...,%20u_n)%7D%7B%5Cpartial%20u_i%7D"></p>
+</blockquote>
+<p>Then, if we want to find the derivative of the output node wrt any of the inputs,</p>
+<blockquote class="blockquote">
+<p>The derivative of an output variable wrt one of the input variables can be found by traversing the graph from the output to the input and multiplying together the derivatives for every edge on the path</p>
+</blockquote>
+<p>To cover every edge case, there are some extra details</p>
+<blockquote class="blockquote">
+<p>If a graph contains multiple paths from the output to an input, then the derivative is the sum of the products for each path</p>
+</blockquote>
+<p>This comes from the case we saw earlier where when we have different functions that have the same input we have to add their derivative chains together.</p>
+<blockquote class="blockquote">
+<p>If an edge is not the input to any function, its derivative is 1</p>
+</blockquote>
+<p>This covers the edge that leads from the final operation to the output. You can think of the edge having the derivative <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20y%7D%7B%5Cpartial%20y%7D=1"></p>
+<p>And that’s it! Let’s try it out with <img src="https://latex.codecogs.com/png.latex?z%20=%20(x%20+%20c)x">:</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://bclarkson-code.github.io/posts/llm-from-scratch-scalar-autograd/images/z_eq_xx_plus_xc.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:50.0%" alt="A graph of z = (x+c)x with edges annotated with derivatives"></p>
+</figure>
+</div>
+<p>Here, instead of writing the formulae for each derivative, I have gone ahead and calculated their actual values. Instead of just figuring out the formulae for a derivative, we want to calculate its value when we plug in our input parameters.</p>
+<p>All that remains is to multiply the local derivatives together along each path. We’ll call the product of derivatives along a single path a chain (after the chain rule)</p>
+<p>We can get from <img src="https://latex.codecogs.com/png.latex?z"> to <img src="https://latex.codecogs.com/png.latex?x"> via the green path and the red path. Following these paths, we get: <img src="https://latex.codecogs.com/png.latex?%5Ctext%7Bred%20path%7D%20=%201%20%5Ctimes%20(x%20+%20c)%20=%20x%20+%20c"> Along the green path we get: <img src="https://latex.codecogs.com/png.latex?%5Ctext%7Bgreen%20path%7D%20=%201%20%5Ctimes%20x%20%5Ctimes%201%20=%20x"></p>
+<p>Adding these together, we get <img src="https://latex.codecogs.com/png.latex?(x+c)%20+%20x%20=%202x%20+%20c"></p>
+<p>If we work out the derivative algebraically:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20z%7D%7B%5Cpartial%20x%7D%20=%20%5Cfrac%7B%5Cpartial%7D%7B%5Cpartial%20x%7D((x+c)x)%20=%20%5Cfrac%7B%5Cpartial%7D%7B%5Cpartial%20x%7D(x%5E2%20+%20cx)%20=%20%5Cfrac%7B%5Cpartial%20x%5E2%7D%7B%5Cpartial%20x%7D%20+%20c%5Cfrac%7B%5Cpartial%20x%7D%7B%5Cpartial%20x%7D%20=%202x%20+%20c"></p>
+<p>We can see that it seems to work! Calculating <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20z%7D%7B%5Cpartial%20c%7D"> is left as an exercise for the reader (I’ve always wanted to say that).</p>
+<p>To summarise, we have invented the following algorithm for calculating of a variable wrt its inputs:</p>
+<ol type="1">
+<li>Turn the equation into a graph</li>
+<li>Label each edge with the appropriate derivative</li>
+<li>Find every path from the output to the input variable you care about</li>
+<li>Follow each path and multiply the derivatives you pass through</li>
+<li>Add together the results for each path</li>
+</ol>
+<p>Now that we have an algorithm in pictures and words, let’s turn it into code.</p>
+</section>
+<section id="the-algorithm" class="level3">
+<h3 class="anchored" data-anchor-id="the-algorithm">The Algorithm™</h3>
+<p>Surprisingly, we have actually already converted our functions into graphs. If you recall, when we generate a tensor from an operation, we record the inputs to the operation in the output tensor (in <code>.args</code>). We also stored the functions to calculate derivatives for each of the inputs in <code>.local_derivatives</code> which means that we know both the destination and derivative for every edge that points to a given node. This means that we’ve already completed steps 1 and 2.</p>
+<p>The next challenge is to find all paths from the tensor we want to differentiate to the input tensors that created it. Because none of our operations are self referential (outputs are never fed back in as inputs), and all of our edges have a direction, our graph of operations is a directed acyclic graph or DAG. The property of the graph having no cycles means that we can find all paths to every parameter pretty easily with a Breadth First Search (or Depth First Search but BFS makes some optimisations easier as we’ll see in part 2).</p>
+<p>To try it out, let’s recreate that giant graph we made earlier. We can do this by first calculating <img src="https://latex.codecogs.com/png.latex?L"> from the inputs</p>
+<div id="f2e26105" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1">y <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb18-2">m <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>)</span>
+<span id="cb18-3">x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span>
+<span id="cb18-4">c <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>)</span>
+<span id="cb18-5"></span>
+<span id="cb18-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># L = (y - (mx + c))^2</span></span>
+<span id="cb18-7">left <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _sub(y, _add(_mul(m, x), c))</span>
+<span id="cb18-8">right <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _sub(y, _add(_mul(m, x), c))</span>
+<span id="cb18-9"></span>
+<span id="cb18-10">L <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _mul(left, right)</span>
+<span id="cb18-11"></span>
+<span id="cb18-12"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Attaching names to tensors will make our</span></span>
+<span id="cb18-13"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># diagram look nicer</span></span>
+<span id="cb18-14">y.name <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"y"</span></span>
+<span id="cb18-15">m.name <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"m"</span></span>
+<span id="cb18-16">x.name <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"x"</span></span>
+<span id="cb18-17">c.name <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"c"</span></span>
+<span id="cb18-18">L.name <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"L"</span></span></code></pre></div>
+</div>
+<p>And then using Breadth First Search to do 3 things:</p>
+<ul>
+<li>Find all nodes</li>
+<li>Find all edges</li>
+<li>Find all paths from <img src="https://latex.codecogs.com/png.latex?L"> to our parameters</li>
+</ul>
+<p>We haven’t implemented a simple way to check whether two tensors are identical so we’ll need to compare hashes.</p>
+<div id="d96dd6c3" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="13">
+<div class="sourceCode cell-code" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1">edges <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> []</span>
+<span id="cb19-2"></span>
+<span id="cb19-3">stack <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [(L, [L])]</span>
+<span id="cb19-4"></span>
+<span id="cb19-5">nodes <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> []</span>
+<span id="cb19-6">edges <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> []</span>
+<span id="cb19-7"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">while</span> stack:</span>
+<span id="cb19-8">    node, current_path <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> stack.pop()</span>
+<span id="cb19-9">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Record nodes we haven't seen before</span></span>
+<span id="cb19-10">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">hash</span>(node) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">not</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">in</span> [<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">hash</span>(n) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">for</span> n <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">in</span> nodes]:</span>
+<span id="cb19-11">        nodes.append(node)</span>
+<span id="cb19-12"></span>
+<span id="cb19-13">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># If we have reached a parameter (it has no arguments</span></span>
+<span id="cb19-14">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># because it wasn't created by an operation) then</span></span>
+<span id="cb19-15">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># record the path taken to get here</span></span>
+<span id="cb19-16">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">not</span> node.args:</span>
+<span id="cb19-17">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> node.paths <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">is</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>:</span>
+<span id="cb19-18">            node.paths <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> []</span>
+<span id="cb19-19">        node.paths.append(current_path)</span>
+<span id="cb19-20">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">continue</span></span>
+<span id="cb19-21"></span>
+<span id="cb19-22">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">for</span> arg <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">in</span> node.args:</span>
+<span id="cb19-23">        stack.append((arg, current_path <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> [arg]))</span>
+<span id="cb19-24">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Record every new edge</span></span>
+<span id="cb19-25">        edges.append((<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">hash</span>(node), <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">hash</span>(arg)))</span></code></pre></div>
+</div>
+<p>Now we’ve got all of the edges and nodes, we have complete knowledge of our computational graph. Let’s use networkx to plot it</p>
+<div id="eb63520c" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="14">
+<div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Assign a unique integer to each</span></span>
+<span id="cb20-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># unnamed node so we know which</span></span>
+<span id="cb20-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># node is which in the picture</span></span>
+<span id="cb20-4">labels <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> {}</span>
+<span id="cb20-5"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">for</span> i, node <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">enumerate</span>(nodes):</span>
+<span id="cb20-6">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> node.name <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">is</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>:</span>
+<span id="cb20-7">        labels[<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">hash</span>(node)] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">str</span>(i)</span>
+<span id="cb20-8">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">else</span>:</span>
+<span id="cb20-9">        labels[<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">hash</span>(node)] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> node.name</span>
+<span id="cb20-10"></span>
+<span id="cb20-11">graph <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> nx.DiGraph()</span>
+<span id="cb20-12">graph.add_edges_from(edges)</span>
+<span id="cb20-13">pos <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> nx.nx_agraph.pygraphviz_layout(graph, prog<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dot"</span>)</span>
+<span id="cb20-14">nx.draw(graph, pos<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>pos, labels<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>labels)</span></code></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://bclarkson-code.github.io/posts/llm-from-scratch-scalar-autograd/post_files/figure-html/cell-15-output-1.png" width="691" height="499" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>If you squint a bit, you can see that this looks like the graph we made earlier! Let’s take a look at the paths the algorithm found from <img src="https://latex.codecogs.com/png.latex?L"> to <img src="https://latex.codecogs.com/png.latex?x">.</p>
+<div id="85edfd8a" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="15">
+<div class="sourceCode cell-code" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">for</span> path <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">in</span> x.paths:</span>
+<span id="cb21-2">    steps <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> []</span>
+<span id="cb21-3">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">for</span> step <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">in</span> path:</span>
+<span id="cb21-4">        steps.append(labels[<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">hash</span>(step)])</span>
+<span id="cb21-5">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"-&gt;"</span>.join(steps))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>L-&gt;1-&gt;2-&gt;4-&gt;x
+L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
+</div>
+</div>
+<p>The paths look correct! All we need to do now is to modify the algorithm a bit to keep track of the chain of derivatives along each path.</p>
+<div id="e48a1dfd" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="16">
+<div class="sourceCode cell-code" id="cb23" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1">y <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb23-2">m <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>)</span>
+<span id="cb23-3">x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span>
+<span id="cb23-4">c <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>)</span>
+<span id="cb23-5"></span>
+<span id="cb23-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># L = (y - (mx + c))^2</span></span>
+<span id="cb23-7">left <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _sub(y, _add(_mul(m, x), c))</span>
+<span id="cb23-8">right <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _sub(y, _add(_mul(m, x), c))</span>
+<span id="cb23-9"></span>
+<span id="cb23-10">L <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _mul(left, right)</span>
+<span id="cb23-11"></span>
+<span id="cb23-12">y.name <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"y"</span></span>
+<span id="cb23-13">m.name <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"m"</span></span>
+<span id="cb23-14">x.name <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"x"</span></span>
+<span id="cb23-15">c.name <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"c"</span></span>
+<span id="cb23-16">L.name <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"L"</span></span></code></pre></div>
+</div>
+<div id="9d80c24d" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="17">
+<div class="sourceCode cell-code" id="cb24" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1">stack <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [(L, [L], [])]</span>
+<span id="cb24-2"></span>
+<span id="cb24-3">nodes <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> []</span>
+<span id="cb24-4">edges <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> []</span>
+<span id="cb24-5"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">while</span> stack:</span>
+<span id="cb24-6">    node, current_path, current_chain <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> stack.pop()</span>
+<span id="cb24-7">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Record nodes we haven't seen before</span></span>
+<span id="cb24-8">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">hash</span>(node) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">not</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">in</span> [<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">hash</span>(n) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">for</span> n <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">in</span> nodes]:</span>
+<span id="cb24-9">        nodes.append(node)</span>
+<span id="cb24-10"></span>
+<span id="cb24-11">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># If we have reached a parameter (it has no arguments</span></span>
+<span id="cb24-12">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># because it wasn't created by an operation) then</span></span>
+<span id="cb24-13">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># record the path taken to get here</span></span>
+<span id="cb24-14">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">not</span> node.args:</span>
+<span id="cb24-15">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> node.paths <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">is</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>:</span>
+<span id="cb24-16">            node.paths <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> []</span>
+<span id="cb24-17">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> node.chains <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">is</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>:</span>
+<span id="cb24-18">            node.chains <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> []</span>
+<span id="cb24-19">        node.paths.append(current_path)</span>
+<span id="cb24-20">        node.chains.append(current_chain)</span>
+<span id="cb24-21">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">continue</span></span>
+<span id="cb24-22"></span>
+<span id="cb24-23">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">for</span> arg, op <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">zip</span>(node.args, node.local_derivatives):</span>
+<span id="cb24-24">        next_node <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> arg</span>
+<span id="cb24-25">        next_path <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> current_path <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> [arg]</span>
+<span id="cb24-26">        next_chain <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> current_chain <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> [op]</span>
+<span id="cb24-27"></span>
+<span id="cb24-28">        stack.append((arg, next_path, next_chain))</span>
+<span id="cb24-29"></span>
+<span id="cb24-30">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Record every new edge</span></span>
+<span id="cb24-31">        edges.append((<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">hash</span>(node), <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">hash</span>(arg)))</span></code></pre></div>
+</div>
+<p>Let’s check if the derivatives were recorded correctly.</p>
+<div id="af7cb3a3" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="18">
+<div class="sourceCode cell-code" id="cb25" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Number of chains: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">len</span>(x.chains)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb25-2"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">for</span> chain <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">in</span> x.chains:</span>
+<span id="cb25-3">    <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(chain)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Number of chains: 2
+[Tensor(-9), Tensor(-1), Tensor(1), Tensor(2)]
+[Tensor(-9), Tensor(-1), Tensor(1), Tensor(2)]</code></pre>
+</div>
+</div>
+<p>Looks reasonable so far. We have 2 identical paths, each with 4 derivatives (one for each edge in the path) as expected.</p>
+<p>Let’s multiply the derivatives together along each path and add the total for each path together and see if we get the right answer.</p>
+<p>According my calculations (and <a href="https://www.wolframalpha.com/">Wolfram Alpha</a>) the derivative of <img src="https://latex.codecogs.com/png.latex?L"> wrt <img src="https://latex.codecogs.com/png.latex?x"> is: <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20L%7D%7B%5Cpartial%20x%7D%20=%202m%20(c%20+%20mx%20-%20y)"> Plugging the values for our tensors in, we get <img src="https://latex.codecogs.com/png.latex?2%5Ctimes2%20(4%20+%20(2%5Ctimes3)%20-%201)%20=%2036"></p>
+<div id="3ed4a9d5" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="19">
+<div class="sourceCode cell-code" id="cb27" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1">total_derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>)</span>
+<span id="cb27-2"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">for</span> chain <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">in</span> x.chains:</span>
+<span id="cb27-3">    chain_total <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb27-4">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">for</span> step <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">in</span> chain:</span>
+<span id="cb27-5">        chain_total <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _mul(chain_total, step)</span>
+<span id="cb27-6">    total_derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _add(total_derivative, chain_total)</span>
+<span id="cb27-7"></span>
+<span id="cb27-8">total_derivative</span></code></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="50">
+<pre><code>Tensor(36)</code></pre>
+</div>
+</div>
+<p>The correct answer! It looks like our algorithm works. All that remains is to put all the pieces together.</p>
+</section>
+</section>
+<section id="putting-it-all-together" class="level2">
+<h2 class="anchored" data-anchor-id="putting-it-all-together">Putting it all together</h2>
+<p>When dreaming up the algorithm, we kept a record of the nodes, edges and paths which made plotting and debugging easier. Now that we know that it works, we can remove these and simplify things a bit.</p>
+<div id="674ba40d" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="20">
+<div class="sourceCode cell-code" id="cb29" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> backward(root_node: Tensor) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>:</span>
+<span id="cb29-2">    stack <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [(root_node, [])]</span>
+<span id="cb29-3"></span>
+<span id="cb29-4">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">while</span> stack:</span>
+<span id="cb29-5">        node, current_derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> stack.pop()</span>
+<span id="cb29-6"></span>
+<span id="cb29-7">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># if we have reached a parameter (it has no arguments</span></span>
+<span id="cb29-8">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># because it wasn't created by an operation) then</span></span>
+<span id="cb29-9">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># record the path taken to get here</span></span>
+<span id="cb29-10">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">not</span> node.args:</span>
+<span id="cb29-11">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> node.chains <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">is</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>:</span>
+<span id="cb29-12">                node.chains <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> []</span>
+<span id="cb29-13">            node.chain.append(current_derivative)</span>
+<span id="cb29-14">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">continue</span></span>
+<span id="cb29-15"></span>
+<span id="cb29-16">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">for</span> arg, op <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">zip</span>(node.args, node.local_derivatives):</span>
+<span id="cb29-17">            stack.append((arg, current_derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> [op]))</span></code></pre></div>
+</div>
+<p>There is also no need (for now) to store the derivatives and calculate them separately. Instead, we can avoid a bunch of repeated calculations by multiplying the derivatives as we go.</p>
+<div id="f4b44ce0" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="21">
+<div class="sourceCode cell-code" id="cb30" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> backward(root_node: Tensor) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>:</span>
+<span id="cb30-2">    stack <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [(root_node, Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>))]</span>
+<span id="cb30-3"></span>
+<span id="cb30-4">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">while</span> stack:</span>
+<span id="cb30-5">        node, current_derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> stack.pop()</span>
+<span id="cb30-6"></span>
+<span id="cb30-7">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># if we have reached a parameter (it has no arguments</span></span>
+<span id="cb30-8">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># because it wasn't created by an operation) then add the</span></span>
+<span id="cb30-9">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># derivative</span></span>
+<span id="cb30-10">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">not</span> node.args:</span>
+<span id="cb30-11">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> node.derivative <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">is</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>:</span>
+<span id="cb30-12">                node.derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> current_derivative</span>
+<span id="cb30-13">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">else</span>:</span>
+<span id="cb30-14">                node.derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _add(node.derivative, current_derivative)</span>
+<span id="cb30-15">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">continue</span></span>
+<span id="cb30-16"></span>
+<span id="cb30-17">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">for</span> arg, derivative <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">zip</span>(node.args, node.local_derivatives):</span>
+<span id="cb30-18">            stack.append((arg, _mul(current_derivative, derivative)))</span></code></pre></div>
+</div>
+<p>Let’s make sure we didn’t break anything</p>
+<div id="785592bd" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="22">
+<div class="sourceCode cell-code" id="cb31" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1">y <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb31-2">m <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>)</span>
+<span id="cb31-3">x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span>
+<span id="cb31-4">c <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>)</span>
+<span id="cb31-5"></span>
+<span id="cb31-6">left <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _sub(y, _add(_mul(m, x), c))</span>
+<span id="cb31-7">right <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _sub(y, _add(_mul(m, x), c))</span>
+<span id="cb31-8"></span>
+<span id="cb31-9">L <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _mul(left, right)</span>
+<span id="cb31-10">backward(L)</span>
+<span id="cb31-11"></span>
+<span id="cb31-12"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>x<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\n</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb31-13">test(got<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>x.derivative.value, want<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">36</span>)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>x.derivative = Tensor(36)
+
+✅ - Want: 36, Got: 36</code></pre>
+</div>
+</div>
+<p>Let’s put this algorithm into our Tensor object</p>
+<div id="df3b815d" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="23">
+<div class="sourceCode cell-code" id="cb33" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">class</span> Tensor:</span>
+<span id="cb33-2">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb33-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    A float that can be differentiated</span></span>
+<span id="cb33-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    """</span></span>
+<span id="cb33-5"></span>
+<span id="cb33-6">    args: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">tuple</span>[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Tensor"</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ()</span>
+<span id="cb33-7">    local_derivatives: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">tuple</span>[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Tensor"</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ()</span>
+<span id="cb33-8">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># The derivative (once we've calculated it).  This is None if the derivative</span></span>
+<span id="cb33-9">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># has not been computed yet</span></span>
+<span id="cb33-10">    derivative: Tensor <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span></span>
+<span id="cb33-11"></span>
+<span id="cb33-12">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, value: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>):</span>
+<span id="cb33-13">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> value</span>
+<span id="cb33-14"></span>
+<span id="cb33-15">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__repr__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">str</span>:</span>
+<span id="cb33-16">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> <span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Tensor(</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>value<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__repr__</span>()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">)"</span></span>
+<span id="cb33-17"></span>
+<span id="cb33-18">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> backward(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>):</span>
+<span id="cb33-19">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.args <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">is</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">or</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.local_derivatives <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">is</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>:</span>
+<span id="cb33-20">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">raise</span> <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">ValueError</span>(</span>
+<span id="cb33-21">                <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Cannot differentiate a Tensor that is not a function of other Tensors"</span></span>
+<span id="cb33-22">            )</span>
+<span id="cb33-23"></span>
+<span id="cb33-24">        stack <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>))]</span>
+<span id="cb33-25"></span>
+<span id="cb33-26">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">while</span> stack:</span>
+<span id="cb33-27">            node, current_derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> stack.pop()</span>
+<span id="cb33-28"></span>
+<span id="cb33-29">            <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># if we have reached a parameter (it has no arguments</span></span>
+<span id="cb33-30">            <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># because it wasn't created by an operation) then add the</span></span>
+<span id="cb33-31">            <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># derivative</span></span>
+<span id="cb33-32">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">not</span> node.args:</span>
+<span id="cb33-33">                <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> node.derivative <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">is</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>:</span>
+<span id="cb33-34">                    node.derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>)</span>
+<span id="cb33-35">                node.derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _add(node.derivative, current_derivative)</span>
+<span id="cb33-36">                <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">continue</span></span>
+<span id="cb33-37"></span>
+<span id="cb33-38">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">for</span> arg, derivative <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">zip</span>(node.args, node.local_derivatives):</span>
+<span id="cb33-39">                new_derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _mul(current_derivative, derivative)</span>
+<span id="cb33-40">                stack.append((arg, new_derivative))</span></code></pre></div>
+</div>
+<p>Let’s try it out</p>
+<div id="d8c2b43f" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="24">
+<div class="sourceCode cell-code" id="cb34" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1">y <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb34-2">m <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>)</span>
+<span id="cb34-3">x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span>
+<span id="cb34-4">c <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>)</span>
+<span id="cb34-5"></span>
+<span id="cb34-6">left <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _sub(y, _add(_mul(m, x), c))</span>
+<span id="cb34-7">right <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _sub(y, _add(_mul(m, x), c))</span>
+<span id="cb34-8"></span>
+<span id="cb34-9">L <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> _mul(left, right)</span>
+<span id="cb34-10">L.backward()</span>
+<span id="cb34-11"></span>
+<span id="cb34-12">test(x.derivative, Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">36</span>))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>❌ - Want: Tensor(36), Got: Tensor(36)</code></pre>
+</div>
+</div>
+<p>Huh?</p>
+<p>By default, if you compare two objects in python with <code>==</code>, python will check whether the object on the left has the same reference as the object as the one on the right. Because <code>Tensor(36)</code> is a different object (that just happens to have the same value) to <code>x.derivative</code>, <code>x.derivative == Tensor(36)</code> returns <code>False</code>.</p>
+<p>It makes a lot more sense to compare two tensors based upon their <code>.value</code>. To achieve this, we can add the <code>__eq__</code> special method to <code>Tensor</code> which will change the behaviour of the <code>==</code> operator for <code>Tensor</code> objects</p>
+<div id="b91bfb5d" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="25">
+<div class="sourceCode cell-code" id="cb36" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__eq__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">bool</span>:</span>
+<span id="cb36-2">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb36-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Tells python to compare .value when applying the `==`</span></span>
+<span id="cb36-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    operation to two tensors instead of comparing references</span></span>
+<span id="cb36-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    """</span></span>
+<span id="cb36-6">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">not</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(other, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Tensor"</span>):</span>
+<span id="cb36-7">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">raise</span> <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">TypeError</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Cannot compare a Tensor with a </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">type</span>(other)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb36-8"></span>
+<span id="cb36-9">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> other.value</span></code></pre></div>
+</div>
+<p>Similarly, if we try to use <code>+</code>, <code>-</code> or <code>*</code> on our tensors, we’ll get an error. We can tell python how to do these operations on our tensors by defining the following special functions:</p>
+<ul>
+<li><code>__add__</code> let’s us use <code>+</code></li>
+<li><code>__sub__</code> let’s us use <code>-</code></li>
+<li><code>__mul__</code> let’s us use <code>*</code></li>
+</ul>
+<div id="d0443aa7" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="26">
+<div class="sourceCode cell-code" id="cb37" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__add__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Tensor:</span>
+<span id="cb37-2">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">not</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(other, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Tensor"</span>):</span>
+<span id="cb37-3">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">raise</span> <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">TypeError</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Cannot add a Tensor to a </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">type</span>(other)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb37-4"></span>
+<span id="cb37-5">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> _add(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other)</span>
+<span id="cb37-6"></span>
+<span id="cb37-7"></span>
+<span id="cb37-8"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__sub__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Tensor:</span>
+<span id="cb37-9">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">not</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(other, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Tensor"</span>):</span>
+<span id="cb37-10">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">raise</span> <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">TypeError</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Cannot subtract a Tensor from a </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">type</span>(other)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb37-11"></span>
+<span id="cb37-12">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> _sub(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other)</span>
+<span id="cb37-13"></span>
+<span id="cb37-14"></span>
+<span id="cb37-15"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__mul__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Tensor:</span>
+<span id="cb37-16">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">not</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(other, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Tensor"</span>):</span>
+<span id="cb37-17">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">raise</span> <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">TypeError</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Cannot multiply a Tensor with a </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">type</span>(other)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb37-18">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> _mul(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other)</span></code></pre></div>
+</div>
+<p>Finally, we can add the <code>__iadd__</code>, <code>__isub__</code> and <code>__imul__</code> methods to allow us to use <code>+=</code>, <code>-=</code> and <code>*=</code>.</p>
+<div id="1662fded" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="27">
+<div class="sourceCode cell-code" id="cb38" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__iadd__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Tensor:</span>
+<span id="cb38-2">    <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__add__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other)</span>
+<span id="cb38-3">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span></span>
+<span id="cb38-4"></span>
+<span id="cb38-5"></span>
+<span id="cb38-6"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__isub__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Tensor:</span>
+<span id="cb38-7">    <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__sub__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other)</span>
+<span id="cb38-8">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span></span>
+<span id="cb38-9"></span>
+<span id="cb38-10"></span>
+<span id="cb38-11"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__imul__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Tensor:</span>
+<span id="cb38-12">    <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__mul__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other)</span>
+<span id="cb38-13">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span></span></code></pre></div>
+</div>
+<p>While we’re here, let’s clean up our backward function a bit by replacing the ugly <code>_add</code> and <code>_mul</code> operations with <code>+</code> and <code>*</code>.</p>
+<div id="90b6d769" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="28">
+<div class="sourceCode cell-code" id="cb39" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> backward(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>):</span>
+<span id="cb39-2">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.args <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">is</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">or</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.local_derivatives <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">is</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>:</span>
+<span id="cb39-3">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">raise</span> <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">ValueError</span>(</span>
+<span id="cb39-4">            <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Cannot differentiate a Tensor that is not a function of other Tensors"</span></span>
+<span id="cb39-5">        )</span>
+<span id="cb39-6"></span>
+<span id="cb39-7">    stack <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>))]</span>
+<span id="cb39-8"></span>
+<span id="cb39-9">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">while</span> stack:</span>
+<span id="cb39-10">        node, current_derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> stack.pop()</span>
+<span id="cb39-11"></span>
+<span id="cb39-12">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># if we have reached a parameter (it has no arguments</span></span>
+<span id="cb39-13">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># because it wasn't created by an operation) then add the</span></span>
+<span id="cb39-14">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># derivative</span></span>
+<span id="cb39-15">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">not</span> node.args:</span>
+<span id="cb39-16">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> node.derivative <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">is</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>:</span>
+<span id="cb39-17">                node.derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+=</span> current_derivative</span>
+<span id="cb39-18">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">else</span>:</span>
+<span id="cb39-19">                node.derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+=</span> current_derivative</span>
+<span id="cb39-20">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">continue</span></span>
+<span id="cb39-21"></span>
+<span id="cb39-22">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">for</span> arg, derivative <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">zip</span>(node.args, node.local_derivatives):</span>
+<span id="cb39-23">            stack.append((arg, current_derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> derivative))</span></code></pre></div>
+</div>
+<p>Putting all of these improvements together, we get a final <code>Tensor</code> object as follows:</p>
+<div id="5e5aadb8" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="29">
+<div class="sourceCode cell-code" id="cb40" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">class</span> Tensor:</span>
+<span id="cb40-2">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb40-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    A float that can be differentiated</span></span>
+<span id="cb40-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    """</span></span>
+<span id="cb40-5"></span>
+<span id="cb40-6">    args: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">tuple</span>[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Tensor"</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ()</span>
+<span id="cb40-7">    local_derivatives: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">tuple</span>[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Tensor"</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ()</span>
+<span id="cb40-8">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># The derivative (once we've calculated it).  This is None if the derivative</span></span>
+<span id="cb40-9">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># has not been computed yet</span></span>
+<span id="cb40-10">    derivative: Tensor <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span></span>
+<span id="cb40-11"></span>
+<span id="cb40-12">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, value: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>):</span>
+<span id="cb40-13">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> value</span>
+<span id="cb40-14"></span>
+<span id="cb40-15">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__repr__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">str</span>:</span>
+<span id="cb40-16">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> <span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Tensor(</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>value<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__repr__</span>()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">)"</span></span>
+<span id="cb40-17"></span>
+<span id="cb40-18">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__eq__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">bool</span>:</span>
+<span id="cb40-19">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">not</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(other, Tensor):</span>
+<span id="cb40-20">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">raise</span> <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">TypeError</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Cannot compare a Tensor with a </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">type</span>(other)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb40-21">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> other.value</span>
+<span id="cb40-22"></span>
+<span id="cb40-23">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__add__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Tensor:</span>
+<span id="cb40-24">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">not</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(other, Tensor):</span>
+<span id="cb40-25">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">raise</span> <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">TypeError</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Cannot add a Tensor to a </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">type</span>(other)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb40-26">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> _add(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other)</span>
+<span id="cb40-27"></span>
+<span id="cb40-28">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__sub__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Tensor:</span>
+<span id="cb40-29">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">not</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(other, Tensor):</span>
+<span id="cb40-30">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">raise</span> <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">TypeError</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Cannot subtract a Tensor from a </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">type</span>(other)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb40-31">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> _sub(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other)</span>
+<span id="cb40-32"></span>
+<span id="cb40-33">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__mul__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Tensor:</span>
+<span id="cb40-34">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">not</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(other, Tensor):</span>
+<span id="cb40-35">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">raise</span> <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">TypeError</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Cannot multiply a Tensor with a </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">type</span>(other)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb40-36">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> _mul(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other)</span>
+<span id="cb40-37"></span>
+<span id="cb40-38">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__iadd__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Tensor:</span>
+<span id="cb40-39">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__add__</span>(other)</span>
+<span id="cb40-40"></span>
+<span id="cb40-41">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__isub__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Tensor:</span>
+<span id="cb40-42">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__sub__</span>(other)</span>
+<span id="cb40-43"></span>
+<span id="cb40-44">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__imul__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Tensor:</span>
+<span id="cb40-45">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__mul__</span>(other)</span>
+<span id="cb40-46"></span>
+<span id="cb40-47">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__repr__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">str</span>:</span>
+<span id="cb40-48">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">return</span> <span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Tensor(</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>value<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">)"</span></span>
+<span id="cb40-49"></span>
+<span id="cb40-50">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">def</span> backward(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>):</span>
+<span id="cb40-51">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.args <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">is</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">or</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.local_derivatives <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">is</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>:</span>
+<span id="cb40-52">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">raise</span> <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">ValueError</span>(</span>
+<span id="cb40-53">                <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Cannot differentiate a Tensor that is not a function of other Tensors"</span></span>
+<span id="cb40-54">            )</span>
+<span id="cb40-55"></span>
+<span id="cb40-56">        stack <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>))]</span>
+<span id="cb40-57"></span>
+<span id="cb40-58">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">while</span> stack:</span>
+<span id="cb40-59">            node, current_derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> stack.pop()</span>
+<span id="cb40-60"></span>
+<span id="cb40-61">            <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># if we have reached a parameter (it has no arguments</span></span>
+<span id="cb40-62">            <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># because it wasn't created by an operation) then add the</span></span>
+<span id="cb40-63">            <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># current_derivative to derivative</span></span>
+<span id="cb40-64">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">not</span> node.args:</span>
+<span id="cb40-65">                <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> node.derivative <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">is</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>:</span>
+<span id="cb40-66">                    node.derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> current_derivative</span>
+<span id="cb40-67">                <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">else</span>:</span>
+<span id="cb40-68">                    node.derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+=</span> current_derivative</span>
+<span id="cb40-69">                <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">continue</span></span>
+<span id="cb40-70"></span>
+<span id="cb40-71">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">for</span> arg, derivative <span class="kw" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">zip</span>(node.args, node.local_derivatives):</span>
+<span id="cb40-72">                stack.append((arg, current_derivative <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> derivative))</span></code></pre></div>
+</div>
+<p>Let’s take it for a spin. We’ll try calculating <img src="https://latex.codecogs.com/png.latex?L"> again</p>
+<div id="851a06d1" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="30">
+<div class="sourceCode cell-code" id="cb41" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1">y <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb41-2">m <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>)</span>
+<span id="cb41-3">x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span>
+<span id="cb41-4">c <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>)</span>
+<span id="cb41-5"></span>
+<span id="cb41-6">diff <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> y <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> ((m <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> c)</span>
+<span id="cb41-7">L <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> diff <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> diff</span>
+<span id="cb41-8">L.backward()</span>
+<span id="cb41-9"></span>
+<span id="cb41-10">test(got<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>x.derivative, want<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">36</span>))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>✅ - Want: Tensor(36), Got: Tensor(36)</code></pre>
+</div>
+</div>
+<p>Much easier!</p>
+<p>To really see what this baby can do, I asked a language model for the most complicated expression it could think of and it gave me this:</p>
+<p><img src="https://latex.codecogs.com/png.latex?f(x)%20=%20(2x%5E3%20+%204x%5E2%20-%205x)%20%5Ctimes%20(3x%5E2%20-%202x%20+%207)%20-%20(6x%5E4%20+%202x%5E3%20-%208x%5E2)%20+%20(5x%5E2%20-%203x)"> According to <a href="https://www.wolframalpha.com/">Wolfram Alpha</a>, the derivative of this expression is: <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7Bd%20f(x)%7D%7Bdx%7D%20=%20-38%20+%20102%20x%20-%2033%20x%5E2%20+%208%20x%5E3%20+%2030%20x%5E4"></p>
+<p>If we plug 2 into this equation, the answer is apparently 578 (again, thanks to <a href="https://www.wolframalpha.com/">Wolfram Alpha</a>).</p>
+<p>Let’s try it with our algorithm</p>
+<div id="d1370653" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="31">
+<div class="sourceCode cell-code" id="cb43" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1">x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>)</span>
+<span id="cb43-2"></span>
+<span id="cb43-3">y <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (</span>
+<span id="cb43-4">    (Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x)</span>
+<span id="cb43-5">    <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> (Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span>))</span>
+<span id="cb43-6">    <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> (Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">6</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x)</span>
+<span id="cb43-7">    <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> (Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x)</span>
+<span id="cb43-8">)</span>
+<span id="cb43-9"></span>
+<span id="cb43-10">y.backward()</span>
+<span id="cb43-11"></span>
+<span id="cb43-12">test(got<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>x.derivative, want<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>Tensor(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">578</span>))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>✅ - Want: Tensor(578), Got: Tensor(578)</code></pre>
+</div>
+</div>
+<p>Once again, we got the right answer!</p>
+</section>
+<section id="conclusion" class="level1">
+<h1>Conclusion</h1>
+<p>From nothing, we have now written an algorithm that will let us differentiate any mathematical expression (provided it only involves addition, subtraction and multiplication). We did this by converting our expression into a graph and re-imagining partial derivatives as operations on the edges of that graph. Then we found that we could apply Breadth First Search to combine all the derivatives together to get a final answer.</p>
+<p>Differentiating scalars is (I hope you agree) interesting, but it isn’t exactly GPT-4. That said, with a few small modifications to our algorithm, we can extend our algorithm to handle multi-dimensional tensors like matrices and vectors. Once you can do that, you can build up to backpropagation and, eventually, to a fully functional language model.</p>
+<p>Next time, we’ll extend our algorithm to vectors and matrices and build up from there to a working neural network. If you want to peek ahead, you can check out the repo for <a href="https://github.com/bclarkson-code/Tricycle">Tricycle</a> which is the name for the deep learning framework we’re building.</p>
+
+
+</section>
+
+ ]]></description>
+  <guid>https://bclarkson-code.github.io/posts/llm-from-scratch-scalar-autograd/post.html</guid>
+  <pubDate>Fri, 10 Feb 2023 00:00:00 GMT</pubDate>
+</item>
+</channel>
+</rss>
