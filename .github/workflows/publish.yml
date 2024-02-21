@@ -20,6 +20,10 @@ jobs:
       - name: Clean Cache
         run: rm -r docs; rm -r _freeze
 
+      - name: Install graphviz
+        run: |
+          sudo apt-get upgrade -y && apt-get install graphviz graphviz-dev -y
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
