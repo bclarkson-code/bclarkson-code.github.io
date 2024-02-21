@@ -17,6 +17,9 @@ jobs:
       - name: Set up Quarto
         uses: quarto-dev/quarto-actions/setup@v2
 
+      - name: Clean Cache
+        uses: rm -r docs; rm -r _freeze
+
       - name: Render and Publish
         uses: quarto-dev/quarto-actions/publish@v2
         with:
