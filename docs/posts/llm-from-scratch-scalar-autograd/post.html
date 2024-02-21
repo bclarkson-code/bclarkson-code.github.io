@@ -511,6 +511,7 @@ window.Quarto = {
 <span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>    <span class="co"># don't worry about these for now</span></span>
 <span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>    paths: List[<span class="st">"Tensor"</span>] <span class="op">=</span> <span class="va">None</span></span>
 <span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>    chains: List[<span class="st">"Tensor"</span>] <span class="op">=</span> <span class="va">None</span></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>    chains: List[<span class="st">"Tensor"</span>] <span class="op">=</span> <span class="va">None</span></span>
 <span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, value: <span class="bu">float</span>):</span>
 <span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.value <span class="op">=</span> value</span>
@@ -970,6 +971,8 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 <span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>    args: <span class="bu">tuple</span>[<span class="st">"Tensor"</span>] <span class="op">=</span> ()</span>
 <span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>    local_derivatives: <span class="bu">tuple</span>[<span class="st">"Tensor"</span>] <span class="op">=</span> ()</span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>    args: <span class="bu">tuple</span>[<span class="st">"Tensor"</span>] <span class="op">=</span> ()</span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>    local_derivatives: <span class="bu">tuple</span>[<span class="st">"Tensor"</span>] <span class="op">=</span> ()</span>
 <span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a>    <span class="co"># The derivative (once we've calculated it).  This is None if the derivative</span></span>
 <span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>    <span class="co"># has not been computed yet</span></span>
 <span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a>    derivative: Tensor <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span></span>
@@ -1111,6 +1114,8 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 <span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a><span class="co">    A float that can be differentiated</span></span>
 <span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
 <span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a>    args: <span class="bu">tuple</span>[<span class="st">"Tensor"</span>] <span class="op">=</span> ()</span>
+<span id="cb40-7"><a href="#cb40-7" aria-hidden="true" tabindex="-1"></a>    local_derivatives: <span class="bu">tuple</span>[<span class="st">"Tensor"</span>] <span class="op">=</span> ()</span>
 <span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a>    args: <span class="bu">tuple</span>[<span class="st">"Tensor"</span>] <span class="op">=</span> ()</span>
 <span id="cb40-7"><a href="#cb40-7" aria-hidden="true" tabindex="-1"></a>    local_derivatives: <span class="bu">tuple</span>[<span class="st">"Tensor"</span>] <span class="op">=</span> ()</span>
 <span id="cb40-8"><a href="#cb40-8" aria-hidden="true" tabindex="-1"></a>    <span class="co"># The derivative (once we've calculated it).  This is None if the derivative</span></span>
