@@ -887,7 +887,7 @@ def backward(self):
 Putting all of these improvements together, we get a final `Tensor` object as follows:
 
 ```{python}
-#| vscode: {languageId: python}
+# | vscode: {languageId: python}
 class Tensor:
     """
     A float that can be differentiated
