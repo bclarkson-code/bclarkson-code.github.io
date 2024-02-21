@@ -22,7 +22,7 @@ jobs:
 
       - name: Install graphviz
         run: |
-          sudo apt-get upgrade -y && apt-get install graphviz graphviz-dev -y
+          sudo apt-get install graphviz graphviz-dev -y
 
       - name: Install dependencies
         run: |
