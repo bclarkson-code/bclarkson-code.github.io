@@ -4,6 +4,8 @@ project:
 
 website:
   title: "Gradient Descent into Madness"
+  site-url: https://bclarkson-code.github.io
+  description: "Building an LLM completely from scratch"
   navbar:
     right:
       - about.qmd
@@ -11,6 +13,8 @@ website:
         href: https://github.com/bclarkson-code
       - icon: linkedin 
         href: https://www.linkedin.com/in/benedict-clarkson-779b43154/
+      - icon: rss
+        href: index.xml
   google-analytics: "G-KG3BJCW6QN"
   comments:
     utterances:
@@ -18,6 +22,7 @@ website:
       label: comment
       theme: github-dark
   favicon: www/logo.png
+  margin-header: subscribe.html
 
 format:
   html:
