@@ -5,7 +5,9 @@ project:
 website:
   title: "Gradient Descent into Madness"
   site-url: https://bclarkson-code.github.io
+
   description: "Building an LLM completely from scratch"
+  open-graph: true
   navbar:
     right:
       - about.qmd
@@ -23,6 +25,9 @@ website:
       theme: github-dark
   favicon: www/logo.png
   margin-header: subscribe.html
+  page-footer: subscribe.html
+
+
 
 format:
   html:
