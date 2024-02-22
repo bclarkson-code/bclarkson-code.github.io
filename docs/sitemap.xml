@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://bclarkson-code.github.io/about.html</loc>
-    <lastmod>2024-02-17T18:33:54.356Z</lastmod>
+    <loc>https://bclarkson-code.github.io/index.html</loc>
+    <lastmod>2024-02-22T21:24:45.265Z</lastmod>
   </url>
   <url>
     <loc>https://bclarkson-code.github.io/posts/llm-from-scratch-scalar-autograd/post.html</loc>
-    <lastmod>2024-02-21T21:13:59.289Z</lastmod>
+    <lastmod>2024-02-22T21:29:36.714Z</lastmod>
   </url>
   <url>
-    <loc>https://bclarkson-code.github.io/index.html</loc>
-    <lastmod>2024-02-21T18:39:08.485Z</lastmod>
+    <loc>https://bclarkson-code.github.io/about.html</loc>
+    <lastmod>2024-02-17T18:33:54.356Z</lastmod>
   </url>
 </urlset>
