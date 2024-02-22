@@ -2,11 +2,15 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://bclarkson-code.github.io/index.html</loc>
-    <lastmod>2024-02-22T21:24:45.265Z</lastmod>
+    <lastmod>2024-02-22T21:34:49.673Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bclarkson-code.github.io/posts/llm-from-scratch-einsum/post.html</loc>
+    <lastmod>2024-02-22T21:44:31.116Z</lastmod>
   </url>
   <url>
     <loc>https://bclarkson-code.github.io/posts/llm-from-scratch-scalar-autograd/post.html</loc>
-    <lastmod>2024-02-22T21:29:36.714Z</lastmod>
+    <lastmod>2024-02-22T21:34:49.674Z</lastmod>
   </url>
   <url>
     <loc>https://bclarkson-code.github.io/about.html</loc>

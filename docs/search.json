@@ -4,7 +4,14 @@
     "href": "index.html",
     "title": "Posts",
     "section": "",
-    "text": "Building an LLM from scratch\n\n\n\n\n\nAutomatic Differentiation\n\n\n\n\n\nFeb 10, 2023\n\n\nBen Clarkson\n\n\n\n\n\n\nNo matching items"
+    "text": "LLM from scratch: Einsum all the way down\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nBuilding an LLM from scratch\n\n\n\n\n\nAutomatic Differentiation\n\n\n\n\n\nFeb 10, 2023\n\n\nBen Clarkson\n\n\n\n\n\n\nNo matching items"
+  },
+  {
+    "objectID": "posts/llm-from-scratch-einsum/post.html",
+    "href": "posts/llm-from-scratch-einsum/post.html",
+    "title": "LLM from scratch: Einsum all the way down",
+    "section": "",
+    "text": "LLM from scratch: Einsum all the way down\n\n\nTODO: Intro\n\nimport numpy as np\n\na = np.arange(6).reshape(3, 2)\nb = np.arange(6, 12).reshape(2, 3)\n\nnp.einsum(\"ij,ji-&gt;j\", a, b)\n\narray([46, 94])\n\n\n\n\n\n\n\nTODO: Midddle bit\n\n\nTODO: Conclusion"
   },
   {
     "objectID": "posts/llm-from-scratch-scalar-autograd/post.html",
@@ -54,5 +61,12 @@
     "title": "About",
     "section": "",
     "text": "I’m usually working on a side project and this blog is where I’ll be sharing them with the world.\nInterested in working together? Check out my CV"
+  },
+  {
+    "objectID": "posts/llm-from-scratch-einsum/post.html#todo-examples-of-using-einsum",
+    "href": "posts/llm-from-scratch-einsum/post.html#todo-examples-of-using-einsum",
+    "title": "LLM from scratch: Einsum all the way down",
+    "section": "TODO: examples of using einsum",
+    "text": "TODO: examples of using einsum"
   }
 ]

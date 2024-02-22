@@ -2,6 +2,7 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/llm-from-scratch-einsum/post.html",
       "/posts/llm-from-scratch-scalar-autograd/post.html"
     ]
   }
