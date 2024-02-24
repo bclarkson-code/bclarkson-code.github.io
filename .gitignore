@@ -1,3 +1,4 @@
 /.quarto/
 .conda
 .vscode
+*.ipynb_checkpoints
