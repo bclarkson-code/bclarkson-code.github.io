@@ -17,6 +17,6 @@ about:
 
 I'm usually working on a side project and this blog is where I'll be sharing them with the world.
 
-Interested in working together? Check out [my CV](https://grabify.link/2W5WWD.pdf)
+Interested in working together? Check out [my CV](https://raw.githubusercontent.com/bclarkson-code/bclarkson-code.github.io/master/www/benedict_clarkson_cv_2_may_2024.pdf)
 
 
