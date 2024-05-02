@@ -9,7 +9,7 @@
 <link>https://bclarkson-code.github.io/</link>
 <atom:link href="https://bclarkson-code.github.io/index.xml" rel="self" type="application/rss+xml"/>
 <description>Building an LLM completely from scratch</description>
-<generator>quarto-1.4.550</generator>
+<generator>quarto-1.4.554</generator>
 <lastBuildDate>Fri, 10 Feb 2023 00:00:00 GMT</lastBuildDate>
 <item>
   <title>Building an LLM from scratch</title>
@@ -21,7 +21,7 @@
 
 
 
-<div id="88df7c6d" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="1">
+<div id="759e40d6" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="1">
 <details class="code-fold">
 <summary>Setup</summary>
 <div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="im" style="color: #00769E;
@@ -52,7 +52,7 @@ font-style: inherit;">as</span> nx</span></code></pre></div>
 <section id="creating-a-tensor" class="level2">
 <h2 class="anchored" data-anchor-id="creating-a-tensor">Creating a tensor</h2>
 <p>We can’t do any differentiation if we don’t have any numbers to differentiate. We’ll want to add some extra functionality that is in standard <code>float</code> types so we’ll need to create our own. Let’s call it a <code>Tensor</code>.</p>
-<div id="bb3f8cbd" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="2">
+<div id="b5af7791" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">class</span> Tensor:</span>
@@ -160,7 +160,7 @@ font-style: inherit;">5</span>)</span></code></pre></div>
 </div>
 </div>
 <p>Next we’ll need some simple operations we want to perform: addition, subtraction and multiplication.</p>
-<div id="af5ef94c" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="3">
+<div id="1d8d2753" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">def</span> _add(a: Tensor, b: Tensor):</span>
@@ -218,7 +218,7 @@ background-color: null;
 font-style: inherit;">*</span> b.value)</span></code></pre></div>
 </div>
 <p>We can use use our operations as follows:</p>
-<div id="70e9b7d6" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="4">
+<div id="80c1aeb3" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">def</span> test(got: Any, want: Any):</span>
@@ -339,7 +339,7 @@ font-style: inherit;">12</span>)</span></code></pre></div>
 <p>This means that the only information we need to store is the inputs to an operation and a function to calculate the derivative wrt each input. With this, we should be able to differentiate any binary function wrt its inputs. A good place to store this information is in the tensor that is produced by the operation.</p>
 <p>We’ll add some new attributes to our <code>Tensor</code>: <code>args</code> and <code>local_derivatives</code>. If the tensor is the output of an operation, then <code>args</code> will store the arguments to the operation and <code>local_derivatives</code> will store the derivatives wrt each input. We’re calling it <code>local_derivatives</code> to avoid confusion when we start nesting functions.</p>
 <p>Once we’ve calculated the derivative (from our <code>args</code> and <code>local_derivatives</code>) we’ll need to store it. It turns out that the neatest place to put this is in the tensor that the output is being differentiated wrt. We’ll call this <code>derivative</code>.</p>
-<div id="8355564c" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="5">
+<div id="96b39f80" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">class</span> Tensor:</span>
@@ -469,7 +469,7 @@ background-color: null;
 font-style: inherit;">)"</span></span></code></pre></div>
 </div>
 <p>For example, if we have</p>
-<div id="c2d5d29f" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="6">
+<div id="72213278" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1">a <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
@@ -505,7 +505,7 @@ font-style: inherit;"># derivative of output wrt b is a</span></span>
 <span id="cb9-5">)</span></code></pre></div>
 <p>Once we have actually computed the derivatives, then the derivative of <code>output</code> wrt <code>a</code> will be stored in <code>a.derivative</code> and should be equal to <code>b</code> (which is 4 in this case).</p>
 <p>We know that we’ve done everything right once these tests pass:</p>
-<div id="0130cae0" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="7">
+<div id="103c7f82" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="7">
 <div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1">a <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
@@ -557,7 +557,7 @@ font-style: inherit;">=</span>a)</span></code></pre></div>
 </div>
 </div>
 <p>First, let’s add a function to our <code>Tensor</code> that will actually calculate the derivatives for each of the function arguments. Pytorch calls this function <code>backward</code> so we’ll do the same.</p>
-<div id="233a6831" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="8">
+<div id="06236caa" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="8">
 <div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">class</span> Tensor:</span>
@@ -768,7 +768,7 @@ background-color: null;
 font-style: inherit;">)"</span></span></code></pre></div>
 </div>
 <p>This only works if we also store the arguments and derivatives in the output tensors of operations</p>
-<div id="b8a080ba" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="9">
+<div id="8eb8b2d7" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="9">
 <div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">def</span> _add(a: Tensor, b: Tensor):</span>
@@ -863,7 +863,7 @@ background-color: null;
 font-style: inherit;">return</span> result</span></code></pre></div>
 </div>
 <p>Let’s re-run our tests and see if it works</p>
-<div id="2dfc763c" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="10">
+<div id="ac8f1d86" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="10">
 <div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1">a <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
@@ -901,7 +901,7 @@ font-style: inherit;">=</span>(b, a))</span>
 </div>
 </div>
 <p>So far so good, let’s try nesting operations.</p>
-<div id="ecfdc882" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="11">
+<div id="5b7516a4" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="11">
 <div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1">a <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
@@ -1051,7 +1051,7 @@ font-style: inherit;"># dz/db = 0 + a = a</span></span>
 <p>Surprisingly, we have actually already converted our functions into graphs. If you recall, when we generate a tensor from an operation, we record the inputs to the operation in the output tensor (in <code>.args</code>). We also stored the functions to calculate derivatives for each of the inputs in <code>.local_derivatives</code> which means that we know both the destination and derivative for every edge that points to a given node. This means that we’ve already completed steps 1 and 2.</p>
 <p>The next challenge is to find all paths from the tensor we want to differentiate to the input tensors that created it. Because none of our operations are self referential (outputs are never fed back in as inputs), and all of our edges have a direction, our graph of operations is a directed acyclic graph or DAG. The property of the graph having no cycles means that we can find all paths to every parameter pretty easily with a Breadth First Search (or Depth First Search but BFS makes some optimisations easier as we’ll see in part 2).</p>
 <p>To try it out, let’s recreate that giant graph we made earlier. We can do this by first calculating <img src="https://latex.codecogs.com/png.latex?L"> from the inputs</p>
-<div id="d0759702" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="12">
+<div id="5fdbeb27" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="12">
 <div class="sourceCode cell-code" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1">y <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
@@ -1126,7 +1126,7 @@ font-style: inherit;">"L"</span></span></code></pre></div>
 <li>Find all paths from <img src="https://latex.codecogs.com/png.latex?L"> to our parameters</li>
 </ul>
 <p>We haven’t implemented a simple way to check whether two tensors are identical so we’ll need to compare hashes.</p>
-<div id="634041b7" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="13">
+<div id="790a4518" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="13">
 <div class="sourceCode cell-code" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1">edges <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> []</span>
@@ -1214,7 +1214,7 @@ background-color: null;
 font-style: inherit;">hash</span>(arg)))</span></code></pre></div>
 </div>
 <p>Now we’ve got all of the edges and nodes, we have complete knowledge of our computational graph. Let’s use networkx to plot it</p>
-<div id="4e2bd8d7" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="14">
+<div id="99b7e6b2" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="14">
 <div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># Assign a unique integer to each</span></span>
@@ -1282,7 +1282,7 @@ font-style: inherit;">=</span>labels)</span></code></pre></div>
 </div>
 </div>
 <p>If you squint a bit, you can see that this looks like the graph we made earlier! Let’s take a look at the paths the algorithm found from <img src="https://latex.codecogs.com/png.latex?L"> to <img src="https://latex.codecogs.com/png.latex?x">.</p>
-<div id="7b6bb745" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="15">
+<div id="ab3505c7" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="15">
 <div class="sourceCode cell-code" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">for</span> path <span class="kw" style="color: #003B4F;
@@ -1310,7 +1310,7 @@ L-&gt;8-&gt;9-&gt;10-&gt;x</code></pre>
 </div>
 </div>
 <p>The paths look correct! All we need to do now is to modify the algorithm a bit to keep track of the chain of derivatives along each path.</p>
-<div id="5176951c" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="16">
+<div id="3d443e84" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="16">
 <div class="sourceCode cell-code" id="cb23" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1">y <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
@@ -1372,7 +1372,7 @@ font-style: inherit;">=</span> <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"L"</span></span></code></pre></div>
 </div>
-<div id="6532d115" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="17">
+<div id="2e59ae30" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="17">
 <div class="sourceCode cell-code" id="cb24" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1">stack <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> [(L, [L], [])]</span>
@@ -1482,7 +1482,7 @@ background-color: null;
 font-style: inherit;">hash</span>(arg)))</span></code></pre></div>
 </div>
 <p>Let’s check if the derivatives were recorded correctly.</p>
-<div id="6298ae13" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="18">
+<div id="e6c96490" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="18">
 <div class="sourceCode cell-code" id="cb25" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
@@ -1513,7 +1513,7 @@ font-style: inherit;">print</span>(chain)</span></code></pre></div>
 <p>Looks reasonable so far. We have 2 identical paths, each with 4 derivatives (one for each edge in the path) as expected.</p>
 <p>Let’s multiply the derivatives together along each path and add the total for each path together and see if we get the right answer.</p>
 <p>According my calculations (and <a href="https://www.wolframalpha.com/">Wolfram Alpha</a>) the derivative of <img src="https://latex.codecogs.com/png.latex?L"> wrt <img src="https://latex.codecogs.com/png.latex?x"> is: <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20L%7D%7B%5Cpartial%20x%7D%20=%202m%20(c%20+%20mx%20-%20y)"> Plugging the values for our tensors in, we get <img src="https://latex.codecogs.com/png.latex?2%5Ctimes2%20(4%20+%20(2%5Ctimes3)%20-%201)%20=%2036"></p>
-<div id="f24e223d" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="19">
+<div id="b83b5384" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="19">
 <div class="sourceCode cell-code" id="cb27" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1">total_derivative <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
@@ -1552,7 +1552,7 @@ font-style: inherit;">=</span> _add(total_derivative, chain_total)</span>
 <section id="putting-it-all-together" class="level2">
 <h2 class="anchored" data-anchor-id="putting-it-all-together">Putting it all together</h2>
 <p>When dreaming up the algorithm, we kept a record of the nodes, edges and paths which made plotting and debugging easier. Now that we know that it works, we can remove these and simplify things a bit.</p>
-<div id="918d9e7c" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="20">
+<div id="7ec2faf8" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="20">
 <div class="sourceCode cell-code" id="cb29" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">def</span> backward(root_node: Tensor) <span class="op" style="color: #5E5E5E;
@@ -1612,7 +1612,7 @@ background-color: null;
 font-style: inherit;">+</span> [op]))</span></code></pre></div>
 </div>
 <p>There is also no need (for now) to store the derivatives and calculate them separately. Instead, we can avoid a bunch of repeated calculations by multiplying the derivatives as we go.</p>
-<div id="87a55a69" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="21">
+<div id="117843e1" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="21">
 <div class="sourceCode cell-code" id="cb30" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">def</span> backward(root_node: Tensor) <span class="op" style="color: #5E5E5E;
@@ -1677,7 +1677,7 @@ font-style: inherit;">zip</span>(node.args, node.local_derivatives):</span>
 <span id="cb30-18">            stack.append((arg, _mul(current_derivative, derivative)))</span></code></pre></div>
 </div>
 <p>Let’s make sure we didn’t break anything</p>
-<div id="1be0dfef" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="22">
+<div id="2acf1000" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="22">
 <div class="sourceCode cell-code" id="cb31" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1">y <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
@@ -1742,7 +1742,7 @@ font-style: inherit;">36</span>)</span></code></pre></div>
 </div>
 </div>
 <p>Let’s put this algorithm into our Tensor object</p>
-<div id="12cbd5c6" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="23">
+<div id="9b3ca9e0" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="23">
 <div class="sourceCode cell-code" id="cb33" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">class</span> Tensor:</span>
@@ -1925,7 +1925,7 @@ font-style: inherit;">=</span> _mul(current_derivative, derivative)</span>
 <span id="cb33-40">                stack.append((arg, new_derivative))</span></code></pre></div>
 </div>
 <p>Let’s try it out</p>
-<div id="4b600842" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="24">
+<div id="0a1871fa" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="24">
 <div class="sourceCode cell-code" id="cb34" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1">y <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
@@ -1969,7 +1969,7 @@ font-style: inherit;">36</span>))</span></code></pre></div>
 <p>Huh?</p>
 <p>By default, if you compare two objects in python with <code>==</code>, python will check whether the object on the left has the same reference as the object as the one on the right. Because <code>Tensor(36)</code> is a different object (that just happens to have the same value) to <code>x.derivative</code>, <code>x.derivative == Tensor(36)</code> returns <code>False</code>.</p>
 <p>It makes a lot more sense to compare two tensors based upon their <code>.value</code>. To achieve this, we can add the <code>__eq__</code> special method to <code>Tensor</code> which will change the behaviour of the <code>==</code> operator for <code>Tensor</code> objects</p>
-<div id="9c061c12" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="25">
+<div id="23d435b8" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="25">
 <div class="sourceCode cell-code" id="cb36" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
@@ -2032,7 +2032,7 @@ font-style: inherit;">==</span> other.value</span></code></pre></div>
 <li><code>__sub__</code> let’s us use <code>-</code></li>
 <li><code>__mul__</code> let’s us use <code>*</code></li>
 </ul>
-<div id="198f20b9" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="26">
+<div id="f926b9d7" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="26">
 <div class="sourceCode cell-code" id="cb37" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
@@ -2155,7 +2155,7 @@ background-color: null;
 font-style: inherit;">self</span>, other)</span></code></pre></div>
 </div>
 <p>Finally, we can add the <code>__iadd__</code>, <code>__isub__</code> and <code>__imul__</code> methods to allow us to use <code>+=</code>, <code>-=</code> and <code>*=</code>.</p>
-<div id="7db781f7" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="27">
+<div id="44a8229a" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="27">
 <div class="sourceCode cell-code" id="cb38" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
@@ -2237,7 +2237,7 @@ background-color: null;
 font-style: inherit;">self</span></span></code></pre></div>
 </div>
 <p>While we’re here, let’s clean up our backward function a bit by replacing the ugly <code>_add</code> and <code>_mul</code> operations with <code>+</code> and <code>*</code>.</p>
-<div id="511056c8" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="28">
+<div id="66fc1d23" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="28">
 <div class="sourceCode cell-code" id="cb39" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">def</span> backward(<span class="va" style="color: #111111;
@@ -2331,7 +2331,7 @@ background-color: null;
 font-style: inherit;">*</span> derivative))</span></code></pre></div>
 </div>
 <p>Putting all of these improvements together, we get a final <code>Tensor</code> object as follows:</p>
-<div id="0449287a" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="29">
+<div id="5c150e82" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="29">
 <div class="sourceCode cell-code" id="cb40" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">class</span> Tensor:</span>
@@ -2744,7 +2744,7 @@ background-color: null;
 font-style: inherit;">*</span> derivative))</span></code></pre></div>
 </div>
 <p>Let’s take it for a spin. We’ll try calculating <img src="https://latex.codecogs.com/png.latex?L"> again</p>
-<div id="8c0558cb" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="30">
+<div id="af6fb34c" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="30">
 <div class="sourceCode cell-code" id="cb41" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1">y <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
@@ -2798,7 +2798,7 @@ font-style: inherit;">36</span>))</span></code></pre></div>
 <p><img src="https://latex.codecogs.com/png.latex?f(x)%20=%20(2x%5E3%20+%204x%5E2%20-%205x)%20%5Ctimes%20(3x%5E2%20-%202x%20+%207)%20-%20(6x%5E4%20+%202x%5E3%20-%208x%5E2)%20+%20(5x%5E2%20-%203x)"> According to <a href="https://www.wolframalpha.com/">Wolfram Alpha</a>, the derivative of this expression is: <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7Bd%20f(x)%7D%7Bdx%7D%20=%20-38%20+%20102%20x%20-%2033%20x%5E2%20+%208%20x%5E3%20+%2030%20x%5E4"></p>
 <p>If we plug 2 into this equation, the answer is apparently 578 (again, thanks to <a href="https://www.wolframalpha.com/">Wolfram Alpha</a>).</p>
 <p>Let’s try it with our algorithm</p>
-<div id="63f924e7" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="31">
+<div id="6921f0e8" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="31">
 <div class="sourceCode cell-code" id="cb43" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1">x <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> Tensor(<span class="dv" style="color: #AD0000;
